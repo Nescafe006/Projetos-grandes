@@ -56,7 +56,7 @@ export default function GerenciarUsuarios() {
                         <View style={styles.actions}>
                             <TouchableOpacity
                                 style={styles.actionButton}
-                                onPress={() => router.push(`/panel/users/edit/${item.id}`)} // Navegar para tela de edição
+                                //onPress={() => router.push(`/panel/users/edit/${item.id}`)} // Navegar para tela de edição
                             >
                                 <Ionicons name="pencil" size={20} color={colors.pearl} />
                             </TouchableOpacity>
@@ -94,7 +94,7 @@ export default function GerenciarUsuarios() {
                 data={users}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
-                vertical
+                //vertical
                 pagingEnabled
                 showsVerticalScrollIndicator={false}
                 snapToInterval={SNAP_INTERVAL}

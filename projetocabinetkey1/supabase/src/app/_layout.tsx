@@ -5,6 +5,13 @@ import { supabase } from '../lib/supabase';
 import { ActivityIndicator, View } from 'react-native';
 import colors from '@/constants/colors';
 import { router } from 'expo-router';
+import Animated, { 
+  FadeIn, 
+  FadeOut, 
+  SlideInRight, 
+  SlideOutLeft 
+} from 'react-native-reanimated';
+
 
 export default function RootLayout() {
   return (
@@ -13,6 +20,7 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
 
 function MainLayout() {
   const { setAuth } = useAuth();
@@ -25,7 +33,6 @@ function MainLayout() {
       } = await supabase.auth.getSession();
   
       if (session?.user) {
-        // Consultar a tabela usuario para verificar o tipo_usuario
         const { data: usuario, error } = await supabase
           .from('usuario')
           .select('tipo_usuario')
@@ -39,9 +46,9 @@ function MainLayout() {
         } else {
           setAuth(session.user);
           if (usuario.tipo_usuario === 'administrador') {
-            router.replace('/(panel)/profile/menu-admin'); // Redireciona para o menu de admin
+            router.replace('/(panel)/profile/menu-admin');
           } else {
-            router.replace('/(panel)/profile/menu'); // Redireciona para o menu de usuário comum
+            router.replace('/(panel)/profile/menu');
           }
         }
       } else {
@@ -55,9 +62,18 @@ function MainLayout() {
     init();
   }, []);
 
+ 
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        animationDuration: 300,
+        contentStyle: { backgroundColor: colors.noir },
+      }}
+    >
+     
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)/signin/login" />
       <Stack.Screen name="(auth)/signup/page" />

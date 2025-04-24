@@ -7,6 +7,18 @@ import colors from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { navigateAfterLogin } from '@/lib/navigation';
 import { useAuth } from '@/src/contexts/AuthContext';
+import Animated, { 
+    FadeIn,
+    FadeInDown,
+    FadeInUp,
+    FadeOut,
+    SlideInLeft,
+    FadeInRight,
+    FadeInLeft,
+    SlideInRight
+  } from 'react-native-reanimated';
+  
+  
 
 
 export default function Login() {
@@ -15,6 +27,9 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [userType, setUserType] = useState<'usuario' | 'administrador'>('usuario');
+  const AnimatedView = Animated.View;
+  const AnimatedText = Animated.Text;
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
    
     
 
@@ -86,112 +101,143 @@ export default function Login() {
         navigateAfterLogin(profile.tipo_usuario as 'usuario' | 'administrador', router, userId);
       }
 
-return (
-    <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-    >
-        <View style={styles.background} />
-        
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.slogan}>Cabinet key</Text>
-                <Text style={styles.subtitle}>Acesse sua conta</Text>
-            </View>
-
-            <View style={styles.form}>
-                <View style={styles.inputContainer}>
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="mail-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
-                        <TextInput
-                            placeholder="Email"
-                            placeholderTextColor={colors.slate[500]}
-                            style={styles.input}
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                    </View>
+      return (
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}
+        >
+            <AnimatedView 
+                entering={FadeIn.duration(500)}
+                style={styles.background} 
+            />
+            
+            <AnimatedView 
+                entering={SlideInRight.duration(600).springify()}
+                style={styles.card}
+            >
+                <View style={styles.cardHeader}>
+                    <AnimatedText 
+                        entering={FadeInUp.duration(800).springify()}
+                        style={styles.slogan}
+                    >
+                        Cabinet key
+                    </AnimatedText>
+                    <AnimatedText 
+                        entering={FadeInUp.duration(800).delay(100).springify()}
+                        style={styles.subtitle}
+                    >
+                        Acesse sua conta
+                    </AnimatedText>
                 </View>
 
-                <View style={styles.inputContainer}>
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="lock-closed-outline" size={20} color={colors.neon.magenta} style={styles.inputIcon} />
-                        <TextInput
-                            placeholder="Senha"
-                            placeholderTextColor={colors.slate[500]}
-                            style={styles.input}
-                            secureTextEntry={secureTextEntry}
-                            value={password}
-                            onChangeText={setPassword}
-                        />
-                        <TouchableOpacity 
-                            onPress={() => setSecureTextEntry(!secureTextEntry)}
-                            style={styles.eyeIcon}
-                        >
-                            <Ionicons 
-                                name={secureTextEntry ? "eye-off-outline" : "eye-outline"} 
-                                size={20} 
-                                color={colors.neon.gold} 
+                <View style={styles.form}>
+                    <AnimatedView 
+                        entering={FadeInDown.duration(600).delay(200).springify()}
+                        style={styles.inputContainer}
+                    >
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="mail-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
+                            <TextInput
+                                placeholder="Email"
+                                placeholderTextColor={colors.slate[500]}
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
                             />
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                        </View>
+                    </AnimatedView>
 
-                <View style={styles.userTypeSelector}>
-                    <TouchableOpacity
-                        style={[styles.userTypeButton, userType === 'usuario' && styles.userTypeActive]}
-                        onPress={() => setUserType('usuario')}
+                    <AnimatedView 
+                        entering={FadeInDown.duration(600).delay(300).springify()}
+                        style={styles.inputContainer}
                     >
-                        <Text style={[styles.userTypeText, userType === 'usuario' && styles.userTypeActiveText]}>
-                            Usuário
-                        </Text>
-                    </TouchableOpacity>
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="lock-closed-outline" size={20} color={colors.neon.magenta} style={styles.inputIcon} />
+                            <TextInput
+                                placeholder="Senha"
+                                placeholderTextColor={colors.slate[500]}
+                                style={styles.input}
+                                secureTextEntry={secureTextEntry}
+                                value={password}
+                                onChangeText={setPassword}
+                            />
+                            <TouchableOpacity 
+                                onPress={() => setSecureTextEntry(!secureTextEntry)}
+                                style={styles.eyeIcon}
+                            >
+                                <Ionicons 
+                                    name={secureTextEntry ? "eye-off-outline" : "eye-outline"} 
+                                    size={20} 
+                                    color={colors.neon.gold} 
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    </AnimatedView>
 
-                    <TouchableOpacity
-                        style={[styles.userTypeButton, userType === 'administrador' && styles.userTypeActive]}
-                        onPress={() => setUserType('administrador')}
+                    <AnimatedView 
+                        entering={FadeInDown.duration(600).delay(400).springify()}
+                        style={styles.userTypeSelector}
                     >
-                        <Text style={[styles.userTypeText, userType === 'administrador' && styles.userTypeActiveText]}>
-                            Admin
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                        <AnimatedTouchableOpacity
+                            style={[styles.userTypeButton, userType === 'usuario' && styles.userTypeActive]}
+                            onPress={() => setUserType('usuario')}
+                            entering={FadeInRight.duration(500).delay(200)}
+                        >
+                            <Text style={[styles.userTypeText, userType === 'usuario' && styles.userTypeActiveText]}>
+                                Usuário
+                            </Text>
+                        </AnimatedTouchableOpacity>
 
-                <TouchableOpacity 
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={handleSignIn}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color={colors.gradients.galaxy[0]} />
-                    ) : (
-                        <Text style={styles.buttonText}>Acessar</Text>
-                    )}
-                </TouchableOpacity>
+                        <AnimatedTouchableOpacity
+                            style={[styles.userTypeButton, userType === 'administrador' && styles.userTypeActive]}
+                            onPress={() => setUserType('administrador')}
+                            entering={FadeInLeft.duration(500).delay(300)}
+                        >
+                            <Text style={[styles.userTypeText, userType === 'administrador' && styles.userTypeActiveText]}>
+                                Admin
+                            </Text>
+                        </AnimatedTouchableOpacity>
+                    </AnimatedView>
 
-                <View style={styles.linksContainer}>
-                    <Link href="/(auth)/signin/esqueceu-senha" asChild>
-                        <TouchableOpacity>
-                            <Text style={styles.linkText}>Esqueceu sua senha?</Text>
-                        </TouchableOpacity>
-                    </Link>
-                    
-                    <View style={styles.signupContainer}>
-                        <Text style={styles.signupText}>Ainda não possui uma conta?</Text>
-                        <Link href="/(auth)/signup/cadastro" asChild>
+                    <AnimatedTouchableOpacity 
+                        style={[styles.button, loading && styles.buttonDisabled]}
+                        onPress={handleSignIn}
+                        disabled={loading}
+                        entering={FadeInUp.duration(600).delay(500).springify()}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color={colors.gradients.galaxy[0]} />
+                        ) : (
+                            <Text style={styles.buttonText}>Acessar</Text>
+                        )}
+                    </AnimatedTouchableOpacity>
+
+                    <AnimatedView 
+                        style={styles.linksContainer}
+                        entering={FadeInUp.duration(600).delay(600).springify()}
+                    >
+                        <Link href="/(auth)/signin/esqueceu-senha" asChild>
                             <TouchableOpacity>
-                                <Text style={styles.signupLink}>Cadastre-se</Text>
+                                <Text style={styles.linkText}>Esqueceu sua senha?</Text>
                             </TouchableOpacity>
                         </Link>
-                    </View>
+                        
+                        <View style={styles.signupContainer}>
+                            <Text style={styles.signupText}>Ainda não possui uma conta?</Text>
+                            <Link href="/(auth)/signup/cadastro" asChild>
+                                <TouchableOpacity>
+                                    <Text style={styles.signupLink}>Cadastre-se</Text>
+                                </TouchableOpacity>
+                            </Link>
+                        </View>
+                    </AnimatedView>
                 </View>
-            </View>
-        </View>
-    </KeyboardAvoidingView>
-);
+            </AnimatedView>
+        </KeyboardAvoidingView>
+    );
 }
 
 const styles = StyleSheet.create({
