@@ -28,7 +28,7 @@ export default function GerenciarUsuarios() {
             const inputRange = [
                 (index - 1) * SNAP_INTERVAL,
                 index * SNAP_INTERVAL,
-                (index + 1) * SNAP_INTERVAL,
+                (index + 1) * SNAP_INTERVAL, 
             ];
             const scale = scrollY.interpolate({
                 inputRange,
