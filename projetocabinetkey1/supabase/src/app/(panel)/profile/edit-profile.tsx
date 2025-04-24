@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,20 +16,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/src/lib/supabase';
 import { Stack } from 'expo-router';
 
 export default function EditProfile() {
   const { currentName, currentAvatar } = useLocalSearchParams();
-  const { user } = useAuth(); // Obter o usuário do contexto
-  const userId = user?.id; // Definir userId aqui
-  
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const [name, setName] = useState(currentName?.toString() || '');
-  const [avatar, setAvatar] = useState(currentAvatar?.toString() || '');
+  const initialAvatar = currentAvatar?.toString();
+
+  const [avatar, setAvatar] = useState(() => {
+    const url = currentAvatar?.toString();
+    return url ? `${url}?t=${Date.now()}` : '';
+  });
+
   const [isLoading, setIsLoading] = useState(false);
-  const [bio, setBio] = useState('');
-  const [website, setWebsite] = useState('');
 
   const validateForm = () => {
     if (!name.trim()) {
@@ -38,115 +41,145 @@ export default function EditProfile() {
     }
     return true;
   };
-  
+
   const uploadAvatar = async (uri: string) => {
     if (!userId) throw new Error('Usuário não autenticado');
-  
+
     const timestamp = Date.now();
     const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${userId}-${timestamp}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
-  
-    const response = await fetch(uri);
-    const blob = await response.blob();
-  
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, blob, {
-        contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`
-      });
-  
-    if (error) throw error;
-  
-    const { data: { publicUrl } } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-  
-    return publicUrl;
+
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, {
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+        });
+
+      if (error) {
+        console.error('Erro ao fazer upload do avatar:', error);
+        throw error;
+      }
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      if (!data.publicUrl) {
+        throw new Error('Falha ao obter a URL pública do avatar');
+      }
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Erro no uploadAvatar:', error);
+      throw error;
+    }
   };
-  
+
   const handleAvatarChange = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (!permissionResult.granted) {
       Alert.alert('Permissão necessária', 'Precisamos acessar sua galeria para mudar a foto');
       return;
     }
-  
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8, 
+      quality: 0.8,
     });
-  
+
     if (!result.canceled) {
       setAvatar(result.assets[0].uri);
     }
   };
-  
+
   const handleSave = async () => {
     if (!validateForm() || !userId) {
       Alert.alert('Erro', 'Usuário não autenticado');
       return;
     }
-    
+
     setIsLoading(true);
     try {
-      let avatarUrl = avatar;
-      
-      // Verifica se é uma nova imagem (URI local)
-      if (avatar && (avatar.startsWith('file:') || avatar.startsWith('content:'))) {
-        avatarUrl = await uploadAvatar(avatar);
-      }
-  
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: userId,
-          full_name: name,
-          avatar_url: avatarUrl,
-          bio,
-          website,
-          updated_at: new Date().toISOString()
+      const { data: profile, error: fetchError } = await supabase
+        .from('usuario')
+        .select('tipo_usuario')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Erro ao buscar tipo_usuario:', {
+          message: fetchError.message,
+          code: fetchError.code,
+          details: fetchError.details,
+          hint: fetchError.hint,
         });
-  
-      if (error) throw error;
-  
-      // Navega de volta com os dados atualizados
+        throw fetchError;
+      }
+
+      const tipoUsuario = profile?.tipo_usuario || 'usuario';
+
+      let avatarUrl = avatar;
+
+      if (avatar && (avatar.startsWith('file:') || avatar.startsWith('content:'))) {
+        try {
+          avatarUrl = await uploadAvatar(avatar);
+        } catch (uploadError) {
+          console.warn('Falha no upload do avatar, salvando sem avatar:', uploadError);
+         // Prossegue sem salvar o avatar
+        }
+      }
+
+      const { error } = await supabase
+        .from('usuario')
+        .upsert({
+          id: userId,
+          nome: name.trim(),
+          avatar_url: avatarUrl || null,
+          tipo_usuario: tipoUsuario,
+        });
+
+      if (error) {
+        console.error('Erro no upsert do usuario:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw error;
+      }
+
       router.replace({
         pathname: '/(panel)/profile/menu',
         params: {
           updatedName: name,
-          updatedAvatar: `${avatarUrl}?t=${Date.now()}` // Cache busting
-        }
+          updatedAvatar: avatarUrl || '',
+        },
       });
-  
+
       Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao salvar:', error);
-      Alert.alert(
-        'Erro', 
-        error?.message || 'Falha ao salvar alterações',
-        [{ text: 'OK' }]
-      );
+      console.error('Erro ao salvar perfil:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      Alert.alert('Erro', error.message || 'Falha ao salvar alterações', [{ text: 'OK' }]);
     } finally {
       setIsLoading(false);
     }
   };
-  
-
-  
 
   return (
-
-    <LinearGradient
-      colors={[colors.slate[900], colors.slate[700]]}
-      style={styles.container}
-    >
+    <LinearGradient colors={[colors.slate[900], colors.slate[700]]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <Stack.Screen options={{ headerShown: false }} /> 
-        {/* Header */}
+        <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="close" size={28} color={colors.pearl} />
@@ -161,7 +194,6 @@ export default function EditProfile() {
           </TouchableOpacity>
         </View>
 
-        {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={handleAvatarChange} style={styles.avatarEditContainer}>
             {avatar ? (
@@ -182,7 +214,6 @@ export default function EditProfile() {
           </TouchableOpacity>
         </View>
 
-        {/* Form Section */}
         <View style={styles.formContainer}>
           <Text style={styles.label}>Nome</Text>
           <TextInput
@@ -192,156 +223,39 @@ export default function EditProfile() {
             placeholderTextColor={colors.slate[500]}
             style={styles.input}
           />
-
-          <Text style={styles.label}>Bio</Text>
-          <TextInput
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Conte sobre você..."
-            placeholderTextColor={colors.slate[500]}
-            style={[styles.input, styles.bioInput]}
-            multiline
-            numberOfLines={3}
-          />
-
-          <Text style={styles.label}>Website</Text>
-          <TextInput
-            value={website}
-            onChangeText={setWebsite}
-            placeholder="https://"
-            placeholderTextColor={colors.slate[500]}
-            style={styles.input}
-            keyboardType="url"
-          />
         </View>
 
-        {/* Advanced Options */}
         <TouchableOpacity style={styles.advancedButton}>
           <Text style={styles.advancedButtonText}>Opções Avançadas</Text>
           <Ionicons name="chevron-forward" size={20} color={colors.slate[500]} />
         </TouchableOpacity>
 
-        
-
-        {/* Delete Account Option */}
         <TouchableOpacity style={styles.deleteButton}>
           <Text style={styles.deleteButtonText}>Excluir Conta</Text>
         </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
-
-    
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  headerTitle: {
-    color: colors.pearl,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  saveText: {
-    color: colors.neon.aqua,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  avatarEditContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: colors.glow.blue,
-  },
+  container: { flex: 1 },
+  scrollContainer: { padding: 20, paddingBottom: 40 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
+  headerTitle: { color: colors.pearl, fontSize: 18, fontWeight: 'bold' },
+  saveText: { color: colors.neon.aqua, fontSize: 16, fontWeight: 'bold' },
+  avatarSection: { alignItems: 'center', marginBottom: 30 },
+  avatarEditContainer: { position: 'relative' },
+  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: colors.glow.blue },
   avatarPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.slate[700],
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.glow.blue,
+    width: 120, height: 120, borderRadius: 60, backgroundColor: colors.slate[700], alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.glow.blue
   },
-  editBadge: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formContainer: {
-    marginBottom: 30,
-  },
-  label: {
-    color: colors.neon.lime,
-    fontSize: 14,
-    marginBottom: 8,
-    marginLeft: 5,
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    backgroundColor: colors.slate[700],
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    color: colors.pearl,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.slate[700],
-    fontSize: 16,
-  },
-  bioInput: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingTop: 15,
-  },
-  advancedButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: colors.slate[700],
-    borderRadius: 12,
-    marginBottom: 15,
-  },
-  advancedButtonText: {
-    color: colors.pearl,
-    fontSize: 16,
-  },
-  deleteButton: {
-    padding: 15,
-    alignItems: 'center',
-    backgroundColor: colors.glass.dark,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.state.error,
-  },
-  deleteButtonText: {
-    color: colors.state.error,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  editBadge: { position: 'absolute', right: 0, bottom: 0, borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  formContainer: { marginBottom: 30 },
+  label: { color: colors.neon.lime, fontSize: 14, marginBottom: 8, marginLeft: 5 },
+  input: { width: '100%', height: 50, backgroundColor: colors.slate[700], borderRadius: 12, paddingHorizontal: 15, color: colors.pearl, marginBottom: 20, borderWidth: 1, borderColor: colors.slate[700], fontSize: 16 },
+  advancedButton: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: colors.slate[700], borderRadius: 12, marginBottom: 15 },
+  advancedButtonText: { color: colors.pearl, fontSize: 16 },
+  deleteButton: { padding: 15, alignItems: 'center', backgroundColor: colors.glass.dark, borderRadius: 12, borderWidth: 1, borderColor: colors.state.error },
+  deleteButtonText: { color: colors.state.error, fontSize: 16, fontWeight: 'bold' },
 });

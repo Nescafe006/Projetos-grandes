@@ -1,13 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from '@/src/contexts/AuthContext';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
 
 export default function Profile() {
     const { setAuth, user } = useAuth();
@@ -16,7 +15,7 @@ export default function Profile() {
     const [userDetails, setUserDetails] = useState({
         fullName: '',
         avatarUrl: null,
-        role: 'admin'
+        role: 'admin',
     });
 
     const handleSignout = useCallback(async () => {
@@ -48,16 +47,15 @@ export default function Profile() {
             }
 
             let profileData = {
-                full_name: '',
+                nome: '',
                 avatar_url: '',
-                username: ''
             };
 
             try {
                 const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('full_name, avatar_url, username')
-                    .eq('user_id', user.id)
+                    .from('usuario')
+                    .select('nome, avatar_url')
+                    .eq('id', user.id) // Changed from user_id to id
                     .single();
 
                 if (!profileError || profileError.code === 'PGRST116') {
@@ -68,15 +66,16 @@ export default function Profile() {
             }
 
             const params = {
-                currentName: profileData.full_name || 
-                           user.user_metadata?.name || 
-                           user.email?.split('@')[0] || 
+                currentName: profileData.nome ||
+                           user.user_metadata?.name ||
+                           user.email?.split('@')[0] ||
                            'Administrador',
-                currentAvatar: profileData.avatar_url || 
-                             user.user_metadata?.avatar_url || 
-                             '',
-                currentUsername: profileData.username || '',
-                userId: user.id
+                           currentAvatar: profileData.avatar_url
+                           ? `${profileData.avatar_url}?t=${Date.now()}`
+                           : user.user_metadata?.avatar_url
+                             ? `${user.user_metadata.avatar_url}?t=${Date.now()}`
+                             : '',
+                userId: user.id,
             };
 
             console.log('Navegando com params:', params);
@@ -84,7 +83,7 @@ export default function Profile() {
         } catch (error) {
             console.error('Falha crítica:', error);
             Alert.alert(
-                'Erro', 
+                'Erro',
                 error instanceof Error ? error.message : 'Falha desconhecida',
                 [{ text: 'OK', onPress: () => router.push('/(panel)/profile/menu-admin') }]
             );
@@ -92,7 +91,6 @@ export default function Profile() {
     };
 
     const handleContactSupport = async () => {
-        // Implementação futura
         Alert.alert('Suporte', 'Funcionalidade em desenvolvimento.');
     };
 
@@ -110,9 +108,9 @@ export default function Profile() {
             if (user) {
                 try {
                     const { data, error } = await supabase
-                        .from('profiles')
-                        .select('full_name, avatar_url, role')
-                        .eq('user_id', user.id)
+                        .from('usuario')
+                        .select('nome, avatar_url, tipo_usuario') // Changed full_name to nome, role to tipo_usuario
+                        .eq('id', user.id) // Changed from user_id to id
                         .single();
 
                     if (error) {
@@ -120,13 +118,13 @@ export default function Profile() {
                         setUserDetails({
                             fullName: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
                             avatarUrl: user.user_metadata?.avatar_url || null,
-                            role: user.user_metadata?.role || 'admin'
+                            role: user.user_metadata?.role || 'admin',
                         });
                     } else {
                         setUserDetails({
-                            fullName: data.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Administrador',
+                            fullName: data.nome || user.user_metadata?.name || user.email?.split('@')[0] || 'Administrador',
                             avatarUrl: data.avatar_url || user.user_metadata?.avatar_url || null,
-                            role: data.role || 'admin'
+                            role: data.tipo_usuario || 'admin',
                         });
                     }
                 } catch (error) {
@@ -134,7 +132,7 @@ export default function Profile() {
                     setUserDetails({
                         fullName: user.email?.split('@')[0] || 'Administrador',
                         avatarUrl: null,
-                        role: 'admin'
+                        role: 'admin',
                     });
                 }
             }
@@ -156,8 +154,8 @@ export default function Profile() {
             <View style={styles.avatarContainer}>
                 <View style={styles.avatarWrapper}>
                     {userDetails.avatarUrl ? (
-                        <Image 
-                            source={{ uri: userDetails.avatarUrl }} 
+                        <Image
+                            source={{ uri: userDetails.avatarUrl }}
                             style={styles.avatar}
                         />
                     ) : (
@@ -165,9 +163,7 @@ export default function Profile() {
                             <Ionicons name="person" size={48} color={colors.neon.aqua} />
                         </View>
                     )}
-                    <TouchableOpacity style={styles.editAvatarButton}>
-                        <Ionicons name="camera" size={20} color={colors.noir} />
-                    </TouchableOpacity>
+                   
                 </View>
                 <Text style={styles.userName}>{userDetails.fullName}</Text>
                 <Text style={styles.userEmail}>{user?.email}</Text>
@@ -204,7 +200,7 @@ export default function Profile() {
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={styles.logoutButton}
                 onPress={handleSignout}
                 disabled={loading}
@@ -225,7 +221,7 @@ export default function Profile() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.slate[900], // Fundo escuro principal
+        backgroundColor: colors.slate[900],
     },
     header: {
         paddingTop: Platform.OS === 'ios' ? 50 : 30,
@@ -233,9 +229,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.slate[800], // Fundo do header mais escuro
+        backgroundColor: colors.slate[800],
         borderBottomWidth: 1,
-        borderBottomColor: colors.slate[700], // Borda sutil
+        borderBottomColor: colors.slate[700],
     },
     backButton: {
         marginRight: 15,
@@ -246,7 +242,7 @@ const styles = StyleSheet.create({
         color: colors.pearl,
         textShadowColor: colors.glow.blue,
         textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 5, // Efeito sutil
+        textShadowRadius: 5,
     },
     avatarContainer: {
         alignItems: 'center',
@@ -271,7 +267,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 2,
         borderColor: colors.neon.aqua,
-        backgroundColor: colors.slate[700], // Fundo escuro
+        backgroundColor: colors.slate[700],
     },
     editAvatarButton: {
         position: 'absolute',

@@ -1,5 +1,5 @@
 import colors from '@/constants/colors';
-import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { Platform } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -17,6 +18,10 @@ export default function Signup() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const { setAuth } = useAuth();
+
+  const AnimatedView = Animated.View;
+  const AnimatedText = Animated.Text;
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   const checkAdminLimit = async () => {
     const { count, error } = await supabase
@@ -115,44 +120,43 @@ export default function Signup() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
         <View style={styles.background} />
-        
-        <View style={styles.card}>
+  
+        <AnimatedView entering={SlideInRight.duration(500)} style={styles.card}>
           <View style={styles.cardHeader}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={colors.pearl} />
-            </Pressable>
-            <Text style={styles.logoText}>
-              <Text style={{ color: colors.neon.lime }}>Cabinet</Text>
-              <Text style={{ color: colors.pearl }}> key</Text>
-            </Text>
-            <Text style={styles.subtitle}>Criar uma conta</Text>
+           
+            <AnimatedText entering={FadeInUp.duration(600)} style={styles.logoText}>
+              Cabinet key
+            </AnimatedText>
+            <AnimatedText entering={FadeInUp.duration(600).delay(100)} style={styles.subtitle}>
+              Criar uma conta
+            </AnimatedText>
           </View>
-
+  
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
+            <AnimatedView entering={FadeInDown.duration(600).delay(200)} style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <Ionicons name="person-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
                 <TextInput
                   placeholder="Nome completo"
-                  placeholderTextColor={colors.slate[500]}
+                  placeholderTextColor={colors.slate[400]}
                   style={styles.input}
                   value={name}
                   onChangeText={setName}
                 />
               </View>
-            </View>
-
-            <View style={styles.inputContainer}>
+            </AnimatedView>
+  
+            <AnimatedView entering={FadeInDown.duration(600).delay(300)} style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={20} color={colors.neon.magenta} style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
                 <TextInput
                   placeholder="Email"
-                  placeholderTextColor={colors.slate[500]}
+                  placeholderTextColor={colors.slate[400]}
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
@@ -160,226 +164,244 @@ export default function Signup() {
                   autoCapitalize="none"
                 />
               </View>
-            </View>
-
-            <View style={styles.inputContainer}>
+            </AnimatedView>
+  
+            <AnimatedView entering={FadeInDown.duration(600).delay(400)} style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={20} color={colors.neon.gold} style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
                 <TextInput
                   placeholder="Senha"
-                  placeholderTextColor={colors.slate[500]}
+                  placeholderTextColor={colors.slate[400]}
                   style={styles.input}
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
                 />
               </View>
-            </View>
+            </AnimatedView>
+  
+            <AnimatedView entering={FadeInDown.duration(600).delay(500)} style={styles.roleSelector}>
+              <AnimatedTouchableOpacity
 
-            <View style={styles.roleSelector}>
-              <Pressable
                 style={[styles.roleButton, role === 'user' && styles.roleButtonSelected]}
                 onPress={() => setRole('user')}
               >
-                <Text style={[styles.roleText, role === 'user' && styles.roleTextSelected]}>
-                  Usuário
-                </Text>
-              </Pressable>
-              <Pressable
+                <Text style={[styles.roleText, role === 'user' && styles.roleTextSelected]}>Usuário</Text>
+              </AnimatedTouchableOpacity>
+  
+              <AnimatedTouchableOpacity
                 style={[styles.roleButton, role === 'admin' && styles.roleButtonSelected]}
                 onPress={() => setRole('admin')}
               >
-                <Text style={[styles.roleText, role === 'admin' && styles.roleTextSelected]}>
-                  Administrador
-                </Text>
-              </Pressable>
-            </View>
+                <Text style={[styles.roleText, role === 'admin' && styles.roleTextSelected]}>Administrador</Text>
+              </AnimatedTouchableOpacity>
+            </AnimatedView>
 
-            {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
-            {successMsg && <Text style={styles.success}>{successMsg}</Text>}
-
-            <Pressable
+            
+  
+            {errorMsg && (
+              <AnimatedText entering={FadeInDown.duration(600).delay(600)} style={styles.error}>
+                {errorMsg}
+              </AnimatedText>
+            )}
+            {successMsg && (
+              <AnimatedText entering={FadeInDown.duration(600).delay(600)} style={styles.success}>
+                {successMsg}
+              </AnimatedText>
+            )}
+  
+            <AnimatedTouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleSignup}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={colors.noir} />
+                <ActivityIndicator color={colors.pearl} />
               ) : (
                 <Text style={styles.buttonText}>Cadastrar</Text>
               )}
-            </Pressable>
-
-            <Pressable 
+            </AnimatedTouchableOpacity>
+  
+            <AnimatedTouchableOpacity
+             
               style={styles.loginLink}
               onPress={() => router.replace('/(auth)/signin/login')}
             >
-              <Text style={styles.loginText}>Já possui uma conta? <Text style={styles.loginLinkText}>Faça login</Text></Text>
-            </Pressable>
+              <Text style={styles.loginText}>
+                Já possui uma conta? <Text style={styles.loginLinkText}>Faça login</Text>
+              </Text>
+            </AnimatedTouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.neon.aqua} />
-        </View>
-      )}
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.slate[900],
-  },
-  card: {
-    width: '90%',
-    maxWidth: 400,
-    backgroundColor: colors.slate[800],
-    borderRadius: 24,
-    padding: 32,
-    shadowColor: colors.neon.aqua,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: colors.slate[700],
-  },
-  cardHeader: {
-    alignItems: 'center',
-    marginBottom: 32,
-    position: 'relative',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: colors.slate[400],
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.slate[700],
-    borderRadius: 12,
-    backgroundColor: colors.slate[700],
-    paddingHorizontal: 16,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: colors.pearl,
-  },
-  roleSelector: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    gap: 16,
-  },
-  roleButton: {
-    flex: 1,
-    backgroundColor: colors.slate[700],
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.slate[600],
-  },
-  roleButtonSelected: {
-    backgroundColor: colors.neon.aqua,
-    borderColor: colors.neon.aqua,
-  },
-  roleText: {
-    color: colors.pearl,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  roleTextSelected: {
-    color: colors.noir,
-    fontWeight: '700',
-  },
-  button: {
-    backgroundColor: colors.neon.lime,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-    shadowColor: colors.glow.green,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.7,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: colors.noir,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  error: {
-    color: colors.state.error,
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 14,
-  },
-  success: {
-    color: colors.state.success,
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 14,
-  },
-  loginLink: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  loginText: {
-    color: colors.slate[400],
-    fontSize: 14,
-  },
-  loginLinkText: {
-    color: colors.neon.magenta,
-    fontWeight: '600',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-});
+        </AnimatedView>
+  
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={colors.neon.aqua} />
+          </View>
+        )}
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+  
+  
+  const styles = StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: 'transparent',
+    },
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    background: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.slate[900], // Darker bluish background
+    },
+    card: {
+      width: '90%',
+      maxWidth: 400,
+      backgroundColor: colors.slate[800], // Softer, darker card background
+      borderRadius: 16, // Softer corners
+      padding: 24,
+      shadowColor: colors.neon.aqua,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 8,
+      borderWidth: 1,
+      borderColor: colors.slate[700], // Subtle border
+    },
+    cardHeader: {
+      alignItems: 'center',
+      marginBottom: 24,
+      position: 'relative',
+    },
+    backButton: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+    },
+    logoText: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: colors.pearl, // Softer white for logo
+      marginBottom: 8,
+      textShadowColor: colors.glow.blue, // Bluish glow
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 6,
+    },
+    subtitle: {
+      color: colors.slate[400], // Softer gray for subtitle
+      fontSize: 16,
+    },
+    form: {
+      width: '100%',
+    },
+    inputContainer: {
+      marginBottom: 16,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.slate[600], // Darker border
+      borderRadius: 10,
+      backgroundColor: colors.slate[700], // Darker input background
+      paddingHorizontal: 12,
+    },
+    inputIcon: {
+      marginRight: 10,
+    },
+    input: {
+      flex: 1,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: colors.pearl,
+    },
+    roleSelector: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 16,
+      gap: 12,
+    },
+    roleButton: {
+      flex: 1,
+      backgroundColor: colors.slate[700], // Darker button background
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.slate[600], // Subtle border
+    },
+    roleButtonSelected: {
+      backgroundColor: colors.neon.aqua, // Bluish active state
+      borderColor: colors.neon.aqua,
+    },
+    roleText: {
+      color: colors.slate[300], // Softer gray
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    roleTextSelected: {
+      color: colors.noir, // Dark text for contrast
+      fontWeight: '700',
+    },
+    button: {
+      backgroundColor: colors.neon.aqua, // Bluish button color
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 20,
+      shadowColor: colors.glow.blue, // Bluish glow
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.5,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    buttonDisabled: {
+      opacity: 0.7,
+    },
+    buttonText: {
+      color: colors.noir, // Dark text for contrast
+      fontSize: 16,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    error: {
+      color: colors.state.error,
+      textAlign: 'center',
+      marginTop: 16,
+      fontSize: 14,
+    },
+    success: {
+      color: colors.state.success,
+      textAlign: 'center',
+      marginTop: 16,
+      fontSize: 14,
+    },
+    loginLink: {
+      marginTop: 20,
+      alignItems: 'center',
+    },
+    loginText: {
+      color: colors.slate[400], // Softer gray
+      fontSize: 14,
+    },
+    loginLinkText: {
+      color: colors.neon.aqua, // Bluish link color
+      fontWeight: '600',
+      textShadowColor: colors.glow.blue, // Bluish glow
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 4,
+    },
+    loadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+    },
+  });
