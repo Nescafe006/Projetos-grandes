@@ -11,48 +11,91 @@ type Key = {
     name: string;
     description: string | null;
     status: string;
-    user_id: string | null; // Permitir null para chaves disponíveis
+    user_id: string | null;
+    borrower_name?: string | null;
 };
 
 export default function BorrowKey() {
     const [keys, setKeys] = useState<Key[]>([]);
     const [loading, setLoading] = useState(false);
     const [borrowing, setBorrowing] = useState<string | null>(null);
+    const [returning, setReturning] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [filter, setFilter] = useState<'all' | 'available' | 'borrowed'>('all');
     const [isEditing, setIsEditing] = useState(false);
     const [editKey, setEditKey] = useState<Key | null>(null);
     const [newName, setNewName] = useState('');
     const [newDescription, setNewDescription] = useState('');
 
-    // Carrega o usuário autenticado e as chaves
     const loadUserAndKeys = async () => {
         setLoading(true);
         try {
+            // Obter usuário autenticado
             const { data: { user }, error: userError } = await supabase.auth.getUser();
             if (userError || !user) {
-                console.error('Erro ao obter usuário:', userError);
+                console.error('Erro ao obter usuário:', userError?.message || 'Usuário não encontrado');
                 throw new Error('Usuário não autenticado.');
             }
             setUserId(user.id);
             console.log('Usuário autenticado:', user.id);
 
-            // Carrega chaves do usuário e chaves disponíveis
-            const { data, error } = await supabase
+            // Verificar se o usuário é administrador
+            const { data: profile, error: profileError } = await supabase
+                .from('usuario')
+                .select('tipo_usuario')
+                .eq('id', user.id)
+                .single();
+
+            if (profileError) {
+                console.error('Erro ao obter perfil:', profileError.message);
+                // Tratar como não-administrador se o perfil não existir
+                setIsAdmin(false);
+            } else {
+                setIsAdmin(profile.tipo_usuario === 'administrador');
+                console.log('É administrador:', profile.tipo_usuario === 'administrador');
+            }
+
+            // Carregar todas as chaves
+            const { data: keysData, error: keysError } = await supabase
                 .from('keys')
                 .select('id, name, description, status, user_id')
-                .or(`user_id.eq.${user.id},status.eq.available`) // Ajuste na consulta
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error('Erro ao carregar chaves:', error);
-                throw error;
+            if (keysError) {
+                console.error('Erro ao carregar chaves:', keysError.message);
+                throw new Error(`Falha ao carregar chaves: ${keysError.message}`);
             }
-            console.log('Chaves carregadas:', data);
-            setKeys(data || []);
+
+            // Obter nomes dos usuários para chaves emprestadas
+            const userIds = [...new Set(keysData.filter(key => key.user_id).map(key => key.user_id))] as string[];
+            let userNames: { [key: string]: string | null } = {};
+
+            if (userIds.length > 0) {
+                const { data: usersData, error: usersError } = await supabase
+                    .from('usuario')
+                    .select('id, nome')
+                    .in('id', userIds);
+
+                if (usersError) {
+                    console.error('Erro ao carregar nomes de usuários:', usersError.message);
+                    // Continuar sem nomes, usando fallback
+                } else {
+                    userNames = Object.fromEntries(usersData.map(user => [user.id, user.nome]));
+                }
+            }
+
+            // Mapear chaves com nomes dos usuários
+            const formattedKeys = keysData.map((key) => ({
+                ...key,
+                borrower_name: key.user_id ? userNames[key.user_id] || 'usuário desconhecido' : null,
+            }));
+
+            console.log('Chaves carregadas:', JSON.stringify(formattedKeys, null, 2));
+            setKeys(formattedKeys || []);
         } catch (error) {
             console.error('Erro geral ao carregar chaves:', error);
-            Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao carregar as chaves.');
+            Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao carregar as chaves. Verifique sua conexão ou contate o suporte.');
         } finally {
             setLoading(false);
         }
@@ -62,14 +105,12 @@ export default function BorrowKey() {
         loadUserAndKeys();
     }, []);
 
-    // Função para solicitar o empréstimo com confirmação
     const handleBorrowKey = async (keyId: string) => {
         setBorrowing(keyId);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado.');
 
-            // Verifica a disponibilidade da chave
             const { data: key, error: keyError } = await supabase
                 .from('keys')
                 .select('id, name, status, user_id')
@@ -77,15 +118,14 @@ export default function BorrowKey() {
                 .single();
 
             if (keyError) {
-                console.error('Erro ao verificar chave:', keyError);
-                throw keyError;
+                console.error('Erro ao verificar chave:', keyError.message);
+                throw new Error(`Falha ao verificar chave: ${keyError.message}`);
             }
             console.log('Chave verificada:', key);
             if (key.status !== 'available' || (key.user_id && key.user_id !== user.id)) {
                 throw new Error('Esta chave não está disponível para empréstimo.');
             }
 
-            // Exibe o card de confirmação
             Alert.alert(
                 'Confirmação',
                 `Tem certeza que deseja pegar a chave "${key.name || 'sem nome'}"?`,
@@ -94,18 +134,16 @@ export default function BorrowKey() {
                     {
                         text: 'Sim',
                         onPress: async () => {
-                            // Atualiza o status e associa ao usuário
                             const { error: updateError } = await supabase
                                 .from('keys')
                                 .update({ status: 'borrowed', user_id: user.id })
                                 .eq('id', keyId);
 
                             if (updateError) {
-                                console.error('Erro ao atualizar chave:', updateError);
-                                throw updateError;
+                                console.error('Erro ao atualizar chave:', updateError.message);
+                                throw new Error(`Falha ao atualizar chave: ${updateError.message}`);
                             }
 
-                            // Registra o empréstimo na tabela 'loans'
                             const { error: loanError } = await supabase
                                 .from('loans')
                                 .insert({
@@ -116,12 +154,12 @@ export default function BorrowKey() {
                                 });
 
                             if (loanError) {
-                                console.error('Erro ao registrar empréstimo:', loanError);
-                                throw loanError;
+                                console.error('Erro ao registrar empréstimo:', loanError.message);
+                                throw new Error(`Falha ao registrar empréstimo: ${loanError.message}`);
                             }
 
                             Alert.alert('Sucesso', `A chave "${key.name || 'sem nome'}" agora está na sua posse!`);
-                            loadUserAndKeys(); // Recarrega as chaves
+                            loadUserAndKeys();
                         },
                     },
                 ]
@@ -133,19 +171,81 @@ export default function BorrowKey() {
         }
     };
 
-    // Função para excluir chave
+    const handleReturnKey = async (keyId: string, keyName: string) => {
+        setReturning(keyId);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Usuário não autenticado.');
+
+            const { data: key, error: keyError } = await supabase
+                .from('keys')
+                .select('id, name, status, user_id')
+                .eq('id', keyId)
+                .single();
+
+            if (keyError) {
+                console.error('Erro ao verificar chave:', keyError.message);
+                throw new Error(`Falha ao verificar chave: ${keyError.message}`);
+            }
+
+            if (key.user_id !== user.id) {
+                throw new Error('Você não pode devolver esta chave, pois não é o usuário que a emprestou.');
+            }
+
+            Alert.alert(
+                'Confirmação',
+                `Tem certeza que deseja devolver a chave "${key.name || 'sem nome'}"?`,
+                [
+                    { text: 'Não', style: 'cancel', onPress: () => setReturning(null) },
+                    {
+                        text: 'Sim',
+                        onPress: async () => {
+                            const { error: updateError } = await supabase
+                                .from('keys')
+                                .update({ status: 'available', user_id: null })
+                                .eq('id', keyId);
+
+                            if (updateError) {
+                                console.error('Erro ao atualizar chave:', updateError.message);
+                                throw new Error(`Falha ao atualizar chave: ${updateError.message}`);
+                            }
+
+                            const { error: loanError } = await supabase
+                                .from('loans')
+                                .update({ status: 'returned', returned_at: new Date().toISOString() })
+                                .eq('key_id', keyId)
+                                .eq('user_id', user.id)
+                                .eq('status', 'active');
+
+                            if (loanError) {
+                                console.error('Erro ao atualizar empréstimo:', loanError.message);
+                                throw new Error(`Falha ao atualizar empréstimo: ${loanError.message}`);
+                            }
+
+                            Alert.alert('Sucesso', `A chave "${key.name || 'sem nome'}" foi devolvida com sucesso!`);
+                            loadUserAndKeys();
+                        },
+                    },
+                ]
+            );
+        } catch (error) {
+            Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao devolver a chave.');
+        } finally {
+            setReturning(null);
+        }
+    };
+
     const handleDeleteKey = async (keyId: string) => {
         try {
             const { error } = await supabase.from('keys').delete().eq('id', keyId);
-            if (error) throw error;
+            if (error) throw new Error(`Falha ao excluir chave: ${error.message}`);
             Alert.alert('Sucesso', 'Chave excluída com sucesso!');
-            loadUserAndKeys(); // Recarrega as chaves após a exclusão
+            loadUserAndKeys();
         } catch (error) {
             Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao excluir a chave.');
         }
     };
 
-    // Função para alterar chave
     const handleEditKey = async () => {
         if (!editKey) return;
 
@@ -160,20 +260,15 @@ export default function BorrowKey() {
                 .update(updatedKey)
                 .eq('id', editKey.id);
 
-            if (error) {
-                console.error('Erro ao atualizar chave:', error);
-                throw error;
-            }
-
+            if (error) throw new Error(`Falha ao atualizar chave: ${error.message}`);
             Alert.alert('Sucesso', 'Chave atualizada com sucesso!');
             setIsEditing(false);
-            loadUserAndKeys(); // Recarrega as chaves após a edição
+            loadUserAndKeys();
         } catch (error) {
             Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao atualizar a chave.');
         }
     };
 
-    // Filtra as chaves com base no filtro
     const filteredKeys = keys.filter((key) => {
         if (filter === 'all') return true;
         return key.status === filter;
@@ -183,15 +278,12 @@ export default function BorrowKey() {
         if (!item) return null;
         const isOwner = userId === item.user_id;
         const statusColor = item.status === 'available' ? colors.neon.aqua : colors.slate[500];
-        const isClickable = !isOwner && item.status === 'available' && borrowing !== item.id;
+        const isBorrowable = !isOwner && item.status === 'available' && borrowing !== item.id;
+        const isReturnable = isOwner && item.status === 'borrowed' && returning !== item.id;
 
         return (
-            <TouchableOpacity
-                style={styles.keyCard}
-                onPress={() => isClickable && handleBorrowKey(item.id)}
-                disabled={!isClickable}
-            >
-                <View style={[styles.keyCardContent, { backgroundColor: item.status === 'available' ? colors.slate[700] : colors.slate[600] }]} >
+            <View style={styles.keyCard}>
+                <View style={[styles.keyCardContent, { backgroundColor: item.status === 'available' ? colors.slate[700] : colors.slate[600] }]}>
                     <Ionicons
                         name={item.status === 'available' ? 'key' : 'lock-closed'}
                         size={32}
@@ -203,42 +295,53 @@ export default function BorrowKey() {
                             <Text style={styles.keyDescription}>{item.description}</Text>
                         )}
                         <Text style={[styles.keyStatus, { color: statusColor }]}>
-                            Status: {item.status === 'available' ? 'Disponível' : 'Emprestada por você'}
+                            Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'Emprestada por você' : `Emprestada por ${item.borrower_name || 'usuário desconhecido'}`}
                         </Text>
                     </View>
-                    {borrowing === item.id ? (
-                        <ActivityIndicator color={colors.pearl} />
-                    ) : item.status === 'available' ? (
-                        <Ionicons name="swap-horizontal" size={24} color={colors.neon.aqua} />
-                    ) : (
-                        <Ionicons name="lock-closed" size={24} color={colors.slate[500]} />
-                    )}
-                    {isOwner && (
-                        <TouchableOpacity onPress={() => {
-                            setEditKey(item);
-                            setNewName(item.name || '');
-                            setNewDescription(item.description || '');
-                            setIsEditing(true);
-                        }}>
-                            <Ionicons name="create" size={24} color={colors.slate[500]} />
-                        </TouchableOpacity>
-                    )}
-                    {isOwner && (
-                        <TouchableOpacity onPress={() => {
-                            Alert.alert(
-                                'Confirmação',
-                                'Você tem certeza que deseja excluir esta chave?',
-                                [
-                                    { text: 'Cancelar', style: 'cancel' },
-                                    { text: 'Excluir', onPress: () => handleDeleteKey(item.id) },
-                                ]
-                            );
-                        }}>
-                            <Ionicons name="trash-bin" size={24} color={colors.slate[500]} />
-                        </TouchableOpacity>
-                    )}
+                    <View style={styles.actionButtons}>
+                        {borrowing === item.id || returning === item.id ? (
+                            <ActivityIndicator color={colors.pearl} />
+                        ) : (
+                            <>
+                                {isBorrowable && (
+                                    <TouchableOpacity onPress={() => handleBorrowKey(item.id)}>
+                                        <Ionicons name="swap-horizontal" size={24} color={colors.neon.aqua} />
+                                    </TouchableOpacity>
+                                )}
+                                {isReturnable && (
+                                    <TouchableOpacity onPress={() => handleReturnKey(item.id, item.name)}>
+                                        <Ionicons name="return-up-back" size={24} color={colors.neon.aqua} />
+                                    </TouchableOpacity>
+                                )}
+                                {isAdmin && (
+                                    <TouchableOpacity onPress={() => {
+                                        setEditKey(item);
+                                        setNewName(item.name || '');
+                                        setNewDescription(item.description || '');
+                                        setIsEditing(true);
+                                    }}>
+                                        <Ionicons name="create" size={24} color={colors.slate[500]} />
+                                    </TouchableOpacity>
+                                )}
+                                {isAdmin && (
+                                    <TouchableOpacity onPress={() => {
+                                        Alert.alert(
+                                            'Confirmação',
+                                            'Você tem certeza que deseja excluir esta chave?',
+                                            [
+                                                { text: 'Cancelar', style: 'cancel' },
+                                                { text: 'Excluir', onPress: () => handleDeleteKey(item.id) },
+                                            ]
+                                        );
+                                    }}>
+                                        <Ionicons name="trash-bin" size={24} color={colors.slate[500]} />
+                                    </TouchableOpacity>
+                                )}
+                            </>
+                        )}
+                    </View>
                 </View>
-            </TouchableOpacity>
+            </View>
         );
     };
 
@@ -400,5 +503,10 @@ const styles = StyleSheet.create({
     cancelButtonText: {
         color: colors.pearl,
         textAlign: 'center',
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
     },
 });

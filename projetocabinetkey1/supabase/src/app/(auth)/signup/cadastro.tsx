@@ -128,7 +128,7 @@ export default function Signup() {
   
         <AnimatedView entering={SlideInRight.duration(500)} style={styles.card}>
           <View style={styles.cardHeader}>
-           
+
             <AnimatedText entering={FadeInUp.duration(600)} style={styles.logoText}>
               Cabinet key
             </AnimatedText>

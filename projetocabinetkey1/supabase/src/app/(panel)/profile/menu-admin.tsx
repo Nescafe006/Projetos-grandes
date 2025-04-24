@@ -165,9 +165,7 @@ export default function Profile() {
                             <Ionicons name="person" size={48} color={colors.neon.aqua} />
                         </View>
                     )}
-                    <TouchableOpacity style={styles.editAvatarButton}>
-                        <Ionicons name="camera" size={20} color={colors.noir} />
-                    </TouchableOpacity>
+                  
                 </View>
                 <Text style={styles.userName}>{userDetails.fullName}</Text>
                 <Text style={styles.userEmail}>{user?.email}</Text>

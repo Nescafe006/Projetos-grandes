@@ -9,6 +9,7 @@ import { navigateAfterLogin } from '@/lib/navigation';
 import { useAuth } from '@/src/contexts/AuthContext';
 import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
 
+
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -17,7 +18,14 @@ export default function Login() {
     const [userType, setUserType] = useState<'usuario' | 'administrador'>('usuario');
     const AnimatedView = Animated.View;
     const AnimatedText = Animated.Text;
-    const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+    const showAlert = (title: string, message: string) => {
+      Alert.alert(title, message, [{ text: 'OK', style: 'default' }], {
+        cancelable: true,
+      });
+    };
+
+
+    
 
     async function handleSignIn() {
         if (!email || !password) {
@@ -39,7 +47,7 @@ export default function Login() {
 
             const { data: profile, error: profileError } = await supabase
                 .from('usuario')
-                .select('id, tipo_usuario, avatar_url') // Added avatar_url
+                .select('id, tipo_usuario, avatar_url')
                 .eq('id', user.id)
                 .single();
 
@@ -52,16 +60,18 @@ export default function Login() {
                             nome: user.email?.split('@')[0] || 'Usuário',
                             tipo_usuario: userType,
                             ativo: true,
-                            avatar_url: null, // Initialize avatar_url
+                            avatar_url: null,
                         });
 
                     if (insertError) throw new Error('Não foi possível criar o perfil');
 
+                    showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!')
                     return proceedWithLogin({ tipo_usuario: userType, avatar_url: null }, userType, router, user.id);
                 }
                 throw new Error('Erro ao buscar perfil: ' + profileError.message);
             }
 
+            showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!')
             return proceedWithLogin(profile, userType, router, user.id);
         } catch (error) {
             console.error('Login error:', error);
@@ -101,7 +111,7 @@ export default function Login() {
             >
                 <View style={styles.cardHeader}>
                     <Image
-                        source={require('../../../assets/images/logo.png')} // Adjust path as needed
+                        source={require('@/assets/images/logo.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />
@@ -219,7 +229,6 @@ export default function Login() {
         </KeyboardAvoidingView>
     );
 }
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -250,8 +259,8 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     logo: {
-        width: 100, // Adjust size as needed
-        height: 100,
+        width: 200, // Adjust size as needed
+        height: 80,
         marginBottom: 12,
     },
     slogan: {

@@ -16,7 +16,7 @@ const keyOptions = [
         id: '2',
         title: 'Empréstimo de Chave',
         icon: 'swap-horizontal',
-        action: () => router.push('/(panel)/keys/borrow-key-usuario'),
+        action: () => router.push('/(panel)/keys/borrow-key'),
         preview: 'Solicite o empréstimo de uma chave disponível.',
     },
     {
