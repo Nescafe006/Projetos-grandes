@@ -22,11 +22,14 @@ export default function BorrowKey() {
     const [returning, setReturning] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [filter, setFilter] = useState<'all' | 'available' | 'borrowed'>('all');
+    const [filter, setFilter] = useState<'all' | 'available' | 'borrowed' | 'favorites'>('all');
     const [isEditing, setIsEditing] = useState(false);
     const [editKey, setEditKey] = useState<Key | null>(null);
     const [newName, setNewName] = useState('');
     const [newDescription, setNewDescription] = useState('');
+    const [favorites, setFavorites] = useState<string[]>([]); // novo estado
+
+
 
     const loadUserAndKeys = async () => {
         setLoading(true);
@@ -269,12 +272,36 @@ export default function BorrowKey() {
         }
     };
 
+
+    const toggleFavorite = (keyId: string) => {
+        const isFavorited = favorites.includes(keyId);
+
+        Alert.alert(
+            isFavorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos',
+            `Tem certeza que deseja ${isFavorited ? 'remover esta chave dos' : 'adicionar esta chave aos'} favoritos?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: isFavorited ? 'Remover' : 'Favoritar',
+                    style: 'default',
+                    onPress: () => {
+                        setFavorites(prev =>
+                            isFavorited ? prev.filter(id => id !== keyId) : [...prev, keyId]
+                        );
+                    },
+                },
+            ]
+        );
+    };
+
+
     const filteredKeys = keys.filter((key) => {
         if (filter === 'all') return true;
+        if (filter === 'favorites') return favorites.includes(key.id);
         return key.status === filter;
-    });
+      });
 
-    const renderKeyItem = ({ item }: { item: Key }) => {
+      const renderKeyItem = ({ item }: { item: Key }) => {
         if (!item) return null;
         const isOwner = userId === item.user_id;
         const statusColor = item.status === 'available' ? colors.neon.aqua : colors.slate[500];
@@ -291,12 +318,8 @@ export default function BorrowKey() {
                     />
                     <View style={styles.keyInfo}>
                         <Text style={styles.keyName}>{item.name}</Text>
-                        {item.description && (
-                            <Text style={styles.keyDescription}>{item.description}</Text>
-                        )}
-                        <Text style={[styles.keyStatus, { color: statusColor }]}>
-                            Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'A chave foi pega por você' : `A chave está na posse do usuário ${item.borrower_name || 'usuário desconhecido'}`}
-                        </Text>
+                        {item.description && <Text style={styles.keyDescription}>{item.description}</Text>}
+                        <Text style={[styles.keyStatus, { color: statusColor }]}>Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'A chave foi pega por você' : `Em posse de ${item.borrower_name || 'usuário desconhecido'}`}</Text>
                     </View>
                     <View style={styles.actionButtons}>
                         {borrowing === item.id || returning === item.id ? (
@@ -313,6 +336,13 @@ export default function BorrowKey() {
                                         <Ionicons name="return-up-back" size={24} color={colors.neon.aqua} />
                                     </TouchableOpacity>
                                 )}
+                                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                                    <Ionicons
+                                        name={favorites.includes(item.id) ? 'heart' : 'heart-outline'}
+                                        size={24}
+                                        color={favorites.includes(item.id) ? colors.neon.aqua : colors.slate[500]}
+                                    />
+                                </TouchableOpacity>
                                 {isAdmin && (
                                     <TouchableOpacity onPress={() => {
                                         setEditKey(item);
@@ -325,14 +355,10 @@ export default function BorrowKey() {
                                 )}
                                 {isAdmin && (
                                     <TouchableOpacity onPress={() => {
-                                        Alert.alert(
-                                            'Confirmação',
-                                            'Você tem certeza que deseja excluir esta chave?',
-                                            [
-                                                { text: 'Cancelar', style: 'cancel' },
-                                                { text: 'Excluir', onPress: () => handleDeleteKey(item.id) },
-                                            ]
-                                        );
+                                        Alert.alert('Confirmação', 'Deseja mesmo excluir esta chave?', [
+                                            { text: 'Cancelar', style: 'cancel' },
+                                            { text: 'Excluir', onPress: () => handleDeleteKey(item.id) },
+                                        ]);
                                     }}>
                                         <Ionicons name="trash-bin" size={24} color={colors.slate[500]} />
                                     </TouchableOpacity>
@@ -344,6 +370,7 @@ export default function BorrowKey() {
             </View>
         );
     };
+
 
     return (
         <View style={styles.container}>
@@ -379,17 +406,19 @@ export default function BorrowKey() {
             ) : (
                 <>
                     <View style={styles.filterContainer}>
-                        <TouchableOpacity onPress={() => setFilter('all')}>
-                            <Text style={[styles.filterText, filter === 'all' && styles.activeFilter]}>Todas</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setFilter('available')}>
-                            <Text style={[styles.filterText, filter === 'available' && styles.activeFilter]}>Disponíveis</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setFilter('borrowed')}>
-                            <Text style={[styles.filterText, filter === 'borrowed' && styles.activeFilter]}>Emprestadas</Text>
-                        </TouchableOpacity>
-                    </View>
-
+  <TouchableOpacity onPress={() => setFilter('all')}>
+    <Text style={[styles.filterText, filter === 'all' && styles.activeFilter]}>Todas</Text>
+  </TouchableOpacity>
+  <TouchableOpacity onPress={() => setFilter('available')}>
+    <Text style={[styles.filterText, filter === 'available' && styles.activeFilter]}>Disponíveis</Text>
+  </TouchableOpacity>
+  <TouchableOpacity onPress={() => setFilter('borrowed')}>
+    <Text style={[styles.filterText, filter === 'borrowed' && styles.activeFilter]}>Emprestadas</Text>
+  </TouchableOpacity>
+  <TouchableOpacity onPress={() => setFilter('favorites')}>
+    <Text style={[styles.filterText, filter === 'favorites' && styles.activeFilter]}>Favoritas</Text>
+  </TouchableOpacity>
+</View>
                     {loading ? (
                         <ActivityIndicator color={colors.pearl} size="large" />
                     ) : (

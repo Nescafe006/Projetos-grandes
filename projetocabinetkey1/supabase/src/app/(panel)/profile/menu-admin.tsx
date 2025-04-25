@@ -1,13 +1,12 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, Animated } from 'react-native';
 import { supabase } from "@/src/lib/supabase";
 import { useAuth } from '@/src/contexts/AuthContext';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
 
 export default function Profile() {
     const { setAuth, user } = useAuth();
@@ -18,6 +17,7 @@ export default function Profile() {
         avatarUrl: null,
         role: 'admin'
     });
+    const [fadeAnim] = useState(new Animated.Value(0));  // Inicializa a animação de opacidade
 
     const handleSignout = useCallback(async () => {
         setLoading(true);
@@ -143,8 +143,17 @@ export default function Profile() {
         fetchUserDetails();
     }, [user]);
 
+    // Animar a transição de opacidade ao carregar os dados
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+        }).start();
+    }, [userDetails]);
+
     return (
-        <View style={styles.container}>
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleGoHome} style={styles.backButton}>
@@ -165,8 +174,7 @@ export default function Profile() {
                             <Ionicons name="person" size={48} color={colors.neon.aqua} />
                         </View>
                     )}
-                  
-                </View>
+                   </View>
                 <Text style={styles.userName}>{userDetails.fullName}</Text>
                 <Text style={styles.userEmail}>{user?.email}</Text>
             </View>
@@ -216,10 +224,9 @@ export default function Profile() {
                     </>
                 )}
             </TouchableOpacity>
-        </View>
+        </Animated.View>
     );
 }
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,

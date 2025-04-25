@@ -32,13 +32,13 @@ const CustomAlert = ({
         <View style={styles.alertIconContainer}>
           <Ionicons 
             name={type === 'success' ? 'checkmark-circle' : 'close-circle'} 
-            size={24} 
-            color={type === 'success' ? colors.green[400] : colors.red[400]} 
+            size={28}
+            color={type === 'success' ? colors.green[500] : colors.red[500]} 
           />
         </View>
         <Text style={styles.alertTitle}>{title}</Text>
         <TouchableOpacity onPress={onClose} style={styles.alertCloseButton}>
-          <Ionicons name="close" size={20} color={colors.slate[400]} />
+          <Ionicons name="close" size={24} color={colors.pearl} />
         </TouchableOpacity>
       </View>
       <Text style={styles.alertMessage}>{message}</Text>
@@ -66,10 +66,10 @@ export default function Login() {
       setAlertType(type);
       setAlertVisible(true);
       
-      // Auto-hide after 5 seconds
+      // Auto-hide após 10 segundos para alertas de sucesso, 7 segundos para erros
       setTimeout(() => {
         setAlertVisible(false);
-      }, 5000);
+      }, type === 'success' ? 10000 : 7000);
     };
 
     const hideAlert = () => {
@@ -81,25 +81,25 @@ export default function Login() {
             showAlert('Erro', 'Por favor, preencha todos os campos', 'error');
             return;
         }
-
+    
         setLoading(true);
-
+    
         try {
             const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password,
             });
-
+    
             if (authError || !user) {
                 throw new Error(authError?.message || 'Autenticação falhou');
             }
-
+    
             const { data: profile, error: profileError } = await supabase
                 .from('usuario')
                 .select('id, tipo_usuario, avatar_url')
                 .eq('id', user.id)
                 .single();
-
+    
             if (profileError) {
                 if (profileError.code === 'PGRST116') {
                     const { error: insertError } = await supabase
@@ -111,19 +111,24 @@ export default function Login() {
                             ativo: true,
                             avatar_url: null,
                         });
-
+    
                     if (insertError) throw new Error('Não foi possível criar o perfil');
-
-                    showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!', 'success')
-                    return proceedWithLogin({ tipo_usuario: userType, avatar_url: null }, userType, router, user.id);
+    
+                    showAlert('Bem-vindo!', 'Login realizado com sucesso. Seu perfil foi criado!', 'success');
+                    setTimeout(() => {
+                        proceedWithLogin({ tipo_usuario: userType, avatar_url: null }, userType, router, user.id);
+                    }, 3000); // Delay adicionado aqui
+                    return;
                 }
                 throw new Error('Erro ao buscar perfil: ' + profileError.message);
             }
-
-            showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!', 'success')
-            return proceedWithLogin(profile, userType, router, user.id);
+    
+            showAlert('Bem-vindo!', 'Login realizado com sucesso. Seja bem-vindo!', 'success');
+            setTimeout(() => {
+                proceedWithLogin(profile, userType, router, user.id);
+            }, 3000); // Delay aqui também
         } catch (error) {
-            console.error('Login error:', error);
+            console.error('Erro no login:', error);
             showAlert('Erro', error instanceof Error ? error.message : 'Falha no login', 'error');
         } finally {
             setLoading(false);
@@ -443,48 +448,48 @@ const styles = StyleSheet.create({
     },
     alertContainer: {
         position: 'absolute',
-        top: 20,
+        top: 40,
         left: 20,
         right: 20,
         borderRadius: 12,
-        padding: 16,
+        padding: 20,
         shadowColor: colors.slate[900],
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 8,
-        zIndex: 100,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 10,
+        zIndex: 1000,
     },
     alertSuccess: {
-        backgroundColor: colors.blue[800],
-        borderLeftWidth: 4,
-        borderLeftColor: colors.green[400],
+        backgroundColor: colors.blue[900],
+        borderLeftWidth: 6,
+        borderLeftColor: colors.green[500],
     },
     alertError: {
-        backgroundColor: colors.blue[800],
-        borderLeftWidth: 4,
-        borderLeftColor: colors.red[400],
+        backgroundColor: colors.blue[900],
+        borderLeftWidth: 6,
+        borderLeftColor: colors.red[500],
     },
     alertHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 10,
     },
     alertIconContainer: {
-        marginRight: 10,
+        marginRight: 12,
     },
     alertTitle: {
         color: colors.pearl,
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
         flex: 1,
     },
     alertCloseButton: {
-        padding: 4,
+        padding: 6,
     },
     alertMessage: {
-        color: colors.slate[300],
-        fontSize: 14,
-        lineHeight: 20,
+        color: colors.slate[200],
+        fontSize: 15,
+        lineHeight: 22,
     },
 });
