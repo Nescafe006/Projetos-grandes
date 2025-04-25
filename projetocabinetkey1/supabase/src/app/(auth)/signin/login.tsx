@@ -6,9 +6,45 @@ import { router, Stack } from 'expo-router';
 import colors from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { navigateAfterLogin } from '@/lib/navigation';
-import { useAuth } from '@/src/contexts/AuthContext';
 import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
 
+const CustomAlert = ({
+  visible,
+  title,
+  message,
+  type,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  type: 'success' | 'error';
+  onClose: () => void;
+}) => {
+  if (!visible) return null;
+
+  return (
+    <Animated.View 
+      style={[styles.alertContainer, type === 'success' ? styles.alertSuccess : styles.alertError]}
+      entering={FadeInUp.duration(300)}
+    >
+      <View style={styles.alertHeader}>
+        <View style={styles.alertIconContainer}>
+          <Ionicons 
+            name={type === 'success' ? 'checkmark-circle' : 'close-circle'} 
+            size={24} 
+            color={type === 'success' ? colors.green[400] : colors.red[400]} 
+          />
+        </View>
+        <Text style={styles.alertTitle}>{title}</Text>
+        <TouchableOpacity onPress={onClose} style={styles.alertCloseButton}>
+          <Ionicons name="close" size={20} color={colors.slate[400]} />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.alertMessage}>{message}</Text>
+    </Animated.View>
+  );
+};
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -16,20 +52,33 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [userType, setUserType] = useState<'usuario' | 'administrador'>('usuario');
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+    
     const AnimatedView = Animated.View;
     const AnimatedText = Animated.Text;
-    const showAlert = (title: string, message: string) => {
-      Alert.alert(title, message, [{ text: 'OK', style: 'default' }], {
-        cancelable: true,
-      });
+    
+    const showAlert = (title: string, message: string, type: 'success' | 'error') => {
+      setAlertTitle(title);
+      setAlertMessage(message);
+      setAlertType(type);
+      setAlertVisible(true);
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        setAlertVisible(false);
+      }, 5000);
     };
 
-
-    
+    const hideAlert = () => {
+      setAlertVisible(false);
+    };
 
     async function handleSignIn() {
         if (!email || !password) {
-            Alert.alert('Erro', 'Por favor, preencha todos os campos');
+            showAlert('Erro', 'Por favor, preencha todos os campos', 'error');
             return;
         }
 
@@ -65,17 +114,17 @@ export default function Login() {
 
                     if (insertError) throw new Error('Não foi possível criar o perfil');
 
-                    showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!')
+                    showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!', 'success')
                     return proceedWithLogin({ tipo_usuario: userType, avatar_url: null }, userType, router, user.id);
                 }
                 throw new Error('Erro ao buscar perfil: ' + profileError.message);
             }
 
-            showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!')
+            showAlert('Login realizado', 'Você entrou com sucesso. Seja bem-vindo!', 'success')
             return proceedWithLogin(profile, userType, router, user.id);
         } catch (error) {
             console.error('Login error:', error);
-            Alert.alert('Erro', error instanceof Error ? error.message : 'Falha no login');
+            showAlert('Erro', error instanceof Error ? error.message : 'Falha no login', 'error');
         } finally {
             setLoading(false);
         }
@@ -92,7 +141,7 @@ export default function Login() {
         }
 
         if (selectedUserType === 'usuario' && profile.tipo_usuario === 'administrador') {
-            Alert.alert('Aviso', 'Você está logando como usuário normal. Selecione "Admin" para acessar o painel administrativo.');
+            showAlert('Aviso', 'Você está logando como usuário normal. Selecione "Admin" para acessar o painel administrativo.', 'error');
         }
 
         navigateAfterLogin(profile.tipo_usuario as 'usuario' | 'administrador', router, userId);
@@ -226,9 +275,18 @@ export default function Login() {
                     </View>
                 </View>
             </AnimatedView>
+
+            <CustomAlert 
+              visible={alertVisible}
+              title={alertTitle}
+              message={alertMessage}
+              type={alertType}
+              onClose={hideAlert}
+            />
         </KeyboardAvoidingView>
     );
 }
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -259,7 +317,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     logo: {
-        width: 200, // Adjust size as needed
+        width: 200,
         height: 80,
         marginBottom: 12,
     },
@@ -382,5 +440,51 @@ const styles = StyleSheet.create({
     userTypeActiveText: {
         color: colors.noir,
         fontWeight: '700',
+    },
+    alertContainer: {
+        position: 'absolute',
+        top: 20,
+        left: 20,
+        right: 20,
+        borderRadius: 12,
+        padding: 16,
+        shadowColor: colors.slate[900],
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8,
+        zIndex: 100,
+    },
+    alertSuccess: {
+        backgroundColor: colors.blue[800],
+        borderLeftWidth: 4,
+        borderLeftColor: colors.green[400],
+    },
+    alertError: {
+        backgroundColor: colors.blue[800],
+        borderLeftWidth: 4,
+        borderLeftColor: colors.red[400],
+    },
+    alertHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    alertIconContainer: {
+        marginRight: 10,
+    },
+    alertTitle: {
+        color: colors.pearl,
+        fontSize: 16,
+        fontWeight: '600',
+        flex: 1,
+    },
+    alertCloseButton: {
+        padding: 4,
+    },
+    alertMessage: {
+        color: colors.slate[300],
+        fontSize: 14,
+        lineHeight: 20,
     },
 });

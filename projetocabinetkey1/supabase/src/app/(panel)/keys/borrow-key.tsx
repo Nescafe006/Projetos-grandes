@@ -189,7 +189,7 @@ export default function BorrowKey() {
             }
 
             if (key.user_id !== user.id) {
-                throw new Error('Você não pode devolver esta chave, pois não é o usuário que a emprestou.');
+                throw new Error('Você não pode devolver esta chave, pois não é o usuário que a pegou.');
             }
 
             Alert.alert(
@@ -295,7 +295,7 @@ export default function BorrowKey() {
                             <Text style={styles.keyDescription}>{item.description}</Text>
                         )}
                         <Text style={[styles.keyStatus, { color: statusColor }]}>
-                            Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'Emprestada por você' : `Emprestada por ${item.borrower_name || 'usuário desconhecido'}`}
+                            Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'A chave foi pega por você' : `A chave está na posse do usuário ${item.borrower_name || 'usuário desconhecido'}`}
                         </Text>
                     </View>
                     <View style={styles.actionButtons}>

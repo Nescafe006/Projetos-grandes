@@ -56,7 +56,17 @@ export default {
   glass: {
     light: 'rgba(255, 255, 255, 0.15)',
     dark: 'rgba(0, 0, 0, 0.3)'
-  }
+  },
 
+
+  blue: {
+    800: '#1e3a8a',
+  },
+  green: {
+    400: '#4ade80',
+  },
+  red: {
+    400: '#f87171',
+  },
   
 };

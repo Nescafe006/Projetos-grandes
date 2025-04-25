@@ -1,5 +1,5 @@
 import colors from '@/constants/colors';
-import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ActivityIndicator, KeyboardAvoidingView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -30,7 +30,7 @@ export default function Signup() {
       .eq('tipo_usuario', 'administrador');
 
     if (error) {
-      console.error('Erro ao verificar limite de administradores:', error.message, error.code);
+      console.error('Erro ao verificar limite de administradores:', error.message, error.code, error);
       throw new Error('Falha ao verificar limite de administradores.');
     }
 
@@ -40,17 +40,14 @@ export default function Signup() {
   const handleSignup = async () => {
     if (!name || !email || !password) {
       setErrorMsg('Por favor, preencha todos os campos.');
-      setLoading(false);
       return;
     }
     if (!email.includes('@') || !email.includes('.')) {
       setErrorMsg('Por favor, insira um email válido.');
-      setLoading(false);
       return;
     }
     if (password.length < 6) {
       setErrorMsg('A senha deve ter pelo menos 6 caracteres.');
-      setLoading(false);
       return;
     }
 
@@ -61,15 +58,13 @@ export default function Signup() {
     try {
       if (role === 'admin') {
         const adminCount = await checkAdminLimit();
-        console.log('Número de administradores:', adminCount);
         if (adminCount >= 2) {
           setErrorMsg('Limite de administradores atingido. Você só pode se cadastrar como usuário normal.');
-          setLoading(false);
           return;
         }
       }
 
-      console.log('Iniciando cadastro com email:', email);
+      // Sign up with additional user metadata
       const { data, error } = await supabase.auth.signUp({
         email: email,
         password: password,
@@ -77,42 +72,42 @@ export default function Signup() {
           data: {
             name: name,
             role: role,
-          },
-        },
+          }
+        }
       });
 
       if (error) {
-        console.error('Erro no signUp:', error.message, error.code);
+        console.error('Signup error:', error);
+        if (error.message.includes('already exists')) {
+          setErrorMsg('Este email já está cadastrado.');
+        } else {
+          setErrorMsg('Erro ao criar conta: ' + error.message);
+        }
         throw error;
       }
 
       if (data.user) {
-        console.log('Usuário cadastrado, inserindo perfil...');
-        const { error: userError } = await supabase
-          .from('usuario')
-          .insert({
-            id: data.user.id,
-            nome: name,
-            tipo_usuario: role === 'user' ? 'usuario' : 'administrador',
-          });
-
-        if (userError) {
-          console.error('Erro ao inserir usuário:', userError.message, userError.code);
-          throw new Error('Falha ao criar perfil do usuário.');
+        // Wait for the trigger to execute
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Update user role if admin
+        if (role === 'admin') {
+          const { error: updateError } = await supabase
+            .from('usuario')
+            .update({ tipo_usuario: 'administrador' })
+            .eq('id', data.user.id);
+            
+          if (updateError) throw updateError;
         }
 
-        setAuth(data.user);
-
-        setSuccessMsg('Cadastro realizado com sucesso!');
-        setLoading(true);
-
+        setSuccessMsg('Cadastro realizado com sucesso! Redirecionando...');
         setTimeout(() => {
           router.replace('/(auth)/signin/login');
-        }, 1000);
+        }, 3000);
       }
     } catch (error) {
-      console.error('Erro no cadastro:', error);
-      setErrorMsg(error instanceof Error ? error.message : 'Falha ao criar a conta.');
+      console.error('Signup failed:', error);
+      setErrorMsg(error instanceof Error ? error.message : 'Falha no cadastro');
     } finally {
       setLoading(false);
     }
@@ -125,10 +120,9 @@ export default function Signup() {
         style={styles.container}
       >
         <View style={styles.background} />
-  
+
         <AnimatedView entering={SlideInRight.duration(500)} style={styles.card}>
           <View style={styles.cardHeader}>
-
             <AnimatedText entering={FadeInUp.duration(600)} style={styles.logoText}>
               Cabinet key
             </AnimatedText>
@@ -136,7 +130,7 @@ export default function Signup() {
               Criar uma conta
             </AnimatedText>
           </View>
-  
+
           <View style={styles.form}>
             <AnimatedView entering={FadeInDown.duration(600).delay(200)} style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
@@ -150,7 +144,7 @@ export default function Signup() {
                 />
               </View>
             </AnimatedView>
-  
+
             <AnimatedView entering={FadeInDown.duration(600).delay(300)} style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <Ionicons name="mail-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
@@ -165,7 +159,7 @@ export default function Signup() {
                 />
               </View>
             </AnimatedView>
-  
+
             <AnimatedView entering={FadeInDown.duration(600).delay(400)} style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={20} color={colors.neon.aqua} style={styles.inputIcon} />
@@ -179,16 +173,15 @@ export default function Signup() {
                 />
               </View>
             </AnimatedView>
-  
+
             <AnimatedView entering={FadeInDown.duration(600).delay(500)} style={styles.roleSelector}>
               <AnimatedTouchableOpacity
-
                 style={[styles.roleButton, role === 'user' && styles.roleButtonSelected]}
                 onPress={() => setRole('user')}
               >
                 <Text style={[styles.roleText, role === 'user' && styles.roleTextSelected]}>Usuário</Text>
               </AnimatedTouchableOpacity>
-  
+
               <AnimatedTouchableOpacity
                 style={[styles.roleButton, role === 'admin' && styles.roleButtonSelected]}
                 onPress={() => setRole('admin')}
@@ -197,8 +190,6 @@ export default function Signup() {
               </AnimatedTouchableOpacity>
             </AnimatedView>
 
-            
-  
             {errorMsg && (
               <AnimatedText entering={FadeInDown.duration(600).delay(600)} style={styles.error}>
                 {errorMsg}
@@ -209,7 +200,7 @@ export default function Signup() {
                 {successMsg}
               </AnimatedText>
             )}
-  
+
             <AnimatedTouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleSignup}
@@ -221,9 +212,8 @@ export default function Signup() {
                 <Text style={styles.buttonText}>Cadastrar</Text>
               )}
             </AnimatedTouchableOpacity>
-  
+
             <AnimatedTouchableOpacity
-             
               style={styles.loginLink}
               onPress={() => router.replace('/(auth)/signin/login')}
             >
@@ -233,175 +223,169 @@ export default function Signup() {
             </AnimatedTouchableOpacity>
           </View>
         </AnimatedView>
-  
+
         {loading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={colors.neon.aqua} />
           </View>
         )}
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
-  
-  
-  const styles = StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: 'transparent',
-    },
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    background: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: colors.slate[900], // Darker bluish background
-    },
-    card: {
-      width: '90%',
-      maxWidth: 400,
-      backgroundColor: colors.slate[800], // Softer, darker card background
-      borderRadius: 16, // Softer corners
-      padding: 24,
-      shadowColor: colors.neon.aqua,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 8,
-      borderWidth: 1,
-      borderColor: colors.slate[700], // Subtle border
-    },
-    cardHeader: {
-      alignItems: 'center',
-      marginBottom: 24,
-      position: 'relative',
-    },
-    backButton: {
-      position: 'absolute',
-      left: 0,
-      top: 0,
-    },
-    logoText: {
-      fontSize: 26,
-      fontWeight: '700',
-      color: colors.pearl, // Softer white for logo
-      marginBottom: 8,
-      textShadowColor: colors.glow.blue, // Bluish glow
-      textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 6,
-    },
-    subtitle: {
-      color: colors.slate[400], // Softer gray for subtitle
-      fontSize: 16,
-    },
-    form: {
-      width: '100%',
-    },
-    inputContainer: {
-      marginBottom: 16,
-    },
-    inputWrapper: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.slate[600], // Darker border
-      borderRadius: 10,
-      backgroundColor: colors.slate[700], // Darker input background
-      paddingHorizontal: 12,
-    },
-    inputIcon: {
-      marginRight: 10,
-    },
-    input: {
-      flex: 1,
-      paddingVertical: 14,
-      fontSize: 16,
-      color: colors.pearl,
-    },
-    roleSelector: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 16,
-      gap: 12,
-    },
-    roleButton: {
-      flex: 1,
-      backgroundColor: colors.slate[700], // Darker button background
-      borderRadius: 10,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.slate[600], // Subtle border
-    },
-    roleButtonSelected: {
-      backgroundColor: colors.neon.aqua, // Bluish active state
-      borderColor: colors.neon.aqua,
-    },
-    roleText: {
-      color: colors.slate[300], // Softer gray
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    roleTextSelected: {
-      color: colors.noir, // Dark text for contrast
-      fontWeight: '700',
-    },
-    button: {
-      backgroundColor: colors.neon.aqua, // Bluish button color
-      paddingVertical: 14,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 20,
-      shadowColor: colors.glow.blue, // Bluish glow
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.5,
-      shadowRadius: 8,
-      elevation: 6,
-    },
-    buttonDisabled: {
-      opacity: 0.7,
-    },
-    buttonText: {
-      color: colors.noir, // Dark text for contrast
-      fontSize: 16,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-    },
-    error: {
-      color: colors.state.error,
-      textAlign: 'center',
-      marginTop: 16,
-      fontSize: 14,
-    },
-    success: {
-      color: colors.state.success,
-      textAlign: 'center',
-      marginTop: 16,
-      fontSize: 14,
-    },
-    loginLink: {
-      marginTop: 20,
-      alignItems: 'center',
-    },
-    loginText: {
-      color: colors.slate[400], // Softer gray
-      fontSize: 14,
-    },
-    loginLinkText: {
-      color: colors.neon.aqua, // Bluish link color
-      fontWeight: '600',
-      textShadowColor: colors.glow.blue, // Bluish glow
-      textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 4,
-    },
-    loadingOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 10,
-    },
-  });
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.slate[900],
+  },
+  card: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: colors.slate[800],
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: colors.neon.aqua,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: colors.slate[700],
+  },
+  cardHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  logoText: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.pearl,
+    marginBottom: 8,
+    textShadowColor: colors.glow.blue,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+  },
+  subtitle: {
+    color: colors.slate[400],
+    fontSize: 16,
+  },
+  form: {
+    width: '100%',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.slate[600],
+    borderRadius: 10,
+    backgroundColor: colors.slate[700],
+    paddingHorizontal: 12,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.pearl,
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    gap: 12,
+  },
+  roleButton: {
+    flex: 1,
+    backgroundColor: colors.slate[700],
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.slate[600],
+  },
+  roleButtonSelected: {
+    backgroundColor: colors.neon.aqua,
+    borderColor: colors.neon.aqua,
+  },
+  roleText: {
+    color: colors.slate[300],
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  roleTextSelected: {
+    color: colors.noir,
+    fontWeight: '700',
+  },
+  button: {
+    backgroundColor: colors.neon.aqua,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    shadowColor: colors.glow.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: colors.noir,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  error: {
+    color: colors.state.error,
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 14,
+  },
+  success: {
+    color: colors.state.success,
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 14,
+  },
+  loginLink: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  loginText: {
+    color: colors.slate[400],
+    fontSize: 14,
+  },
+  loginLinkText: {
+    color: colors.neon.aqua,
+    fontWeight: '600',
+    textShadowColor: colors.glow.blue,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+});

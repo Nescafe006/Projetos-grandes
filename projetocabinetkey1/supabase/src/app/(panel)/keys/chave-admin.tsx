@@ -102,7 +102,7 @@ export default function KeysDashboard() {
                 data={keyOptions}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
-                vertical
+      
                 pagingEnabled
                 showsVerticalScrollIndicator={false}
                 snapToInterval={SNAP_INTERVAL}
