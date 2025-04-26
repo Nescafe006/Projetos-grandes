@@ -20,18 +20,17 @@ import { supabase } from '@/src/lib/supabase';
 import { Stack } from 'expo-router';
 
 export default function EditProfile() {
-  const { currentName, currentAvatar } = useLocalSearchParams();
+  const { currentName, currentAvatar, currentBio, currentWebsite } = useLocalSearchParams();
   const { user } = useAuth();
   const userId = user?.id;
 
   const [name, setName] = useState(currentName?.toString() || '');
-  const initialAvatar = currentAvatar?.toString();
-
+  const [bio, setBio] = useState(currentBio?.toString() || '');
+  const [website, setWebsite] = useState(currentWebsite?.toString() || '');
   const [avatar, setAvatar] = useState(() => {
     const url = currentAvatar?.toString();
     return url ? `${url}?t=${Date.now()}` : '';
   });
-
   const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
@@ -131,7 +130,6 @@ export default function EditProfile() {
           avatarUrl = await uploadAvatar(avatar);
         } catch (uploadError) {
           console.warn('Falha no upload do avatar, salvando sem avatar:', uploadError);
-         // Prossegue sem salvar o avatar
         }
       }
 
@@ -140,6 +138,8 @@ export default function EditProfile() {
         .upsert({
           id: userId,
           nome: name.trim(),
+          bio: bio.trim(),
+          website: website.trim(),
           avatar_url: avatarUrl || null,
           tipo_usuario: tipoUsuario,
         });
@@ -158,6 +158,8 @@ export default function EditProfile() {
         pathname: '/(panel)/profile/menu',
         params: {
           updatedName: name,
+          updatedBio: bio,
+          updatedWebsite: website,
           updatedAvatar: avatarUrl || '',
         },
       });
@@ -223,12 +225,28 @@ export default function EditProfile() {
             placeholderTextColor={colors.slate[500]}
             style={styles.input}
           />
-        </View>
 
-        <TouchableOpacity style={styles.advancedButton}>
-          <Text style={styles.advancedButtonText}>Opções Avançadas</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.slate[500]} />
-        </TouchableOpacity>
+          <Text style={styles.label}>Bio</Text>
+          <TextInput
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Conte sobre você"
+            placeholderTextColor={colors.slate[500]}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+          />
+
+          <Text style={styles.label}>Website</Text>
+          <TextInput
+            value={website}
+            onChangeText={setWebsite}
+            placeholder="Seu site ou link pessoal"
+            placeholderTextColor={colors.slate[500]}
+            style={styles.input}
+            keyboardType="url"
+          />
+        </View>
 
         <TouchableOpacity style={styles.deleteButton}>
           <Text style={styles.deleteButtonText}>Excluir Conta</Text>
@@ -241,21 +259,89 @@ export default function EditProfile() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContainer: { padding: 20, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  headerTitle: { color: colors.pearl, fontSize: 18, fontWeight: 'bold' },
-  saveText: { color: colors.neon.aqua, fontSize: 16, fontWeight: 'bold' },
-  avatarSection: { alignItems: 'center', marginBottom: 30 },
-  avatarEditContainer: { position: 'relative' },
-  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: colors.glow.blue },
-  avatarPlaceholder: {
-    width: 120, height: 120, borderRadius: 60, backgroundColor: colors.slate[700], alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: colors.glow.blue
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 30 
   },
-  editBadge: { position: 'absolute', right: 0, bottom: 0, borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  formContainer: { marginBottom: 30 },
-  label: { color: colors.neon.lime, fontSize: 14, marginBottom: 8, marginLeft: 5 },
-  input: { width: '100%', height: 50, backgroundColor: colors.slate[700], borderRadius: 12, paddingHorizontal: 15, color: colors.pearl, marginBottom: 20, borderWidth: 1, borderColor: colors.slate[700], fontSize: 16 },
-  advancedButton: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, backgroundColor: colors.slate[700], borderRadius: 12, marginBottom: 15 },
-  advancedButtonText: { color: colors.pearl, fontSize: 16 },
-  deleteButton: { padding: 15, alignItems: 'center', backgroundColor: colors.glass.dark, borderRadius: 12, borderWidth: 1, borderColor: colors.state.error },
-  deleteButtonText: { color: colors.state.error, fontSize: 16, fontWeight: 'bold' },
+  headerTitle: { 
+    color: colors.pearl, 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  saveText: { 
+    color: colors.neon.aqua, 
+    fontSize: 16, 
+    fontWeight: 'bold' 
+  },
+  avatarSection: { 
+    alignItems: 'center', 
+    marginBottom: 30 
+  },
+  avatarEditContainer: { 
+    position: 'relative' 
+  },
+  avatar: { 
+    width: 120, 
+    height: 120, 
+    borderRadius: 60, 
+    borderWidth: 3, 
+    borderColor: colors.glow.blue 
+  },
+  avatarPlaceholder: {
+    width: 120, 
+    height: 120, 
+    borderRadius: 60, 
+    backgroundColor: colors.slate[700], 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    borderWidth: 3, 
+    borderColor: colors.glow.blue
+  },
+  editBadge: { 
+    position: 'absolute', 
+    right: 0, 
+    bottom: 0, 
+    borderRadius: 20, 
+    width: 40, 
+    height: 40, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  formContainer: { 
+    marginBottom: 30 
+  },
+  label: { 
+    color: colors.neon.lime, 
+    fontSize: 14, 
+    marginBottom: 8, 
+    marginLeft: 5 
+  },
+  input: { 
+    width: '100%', 
+    minHeight: 50, 
+    backgroundColor: colors.slate[700], 
+    borderRadius: 12, 
+    paddingHorizontal: 15, 
+    color: colors.pearl, 
+    marginBottom: 20, 
+    borderWidth: 1, 
+    borderColor: colors.slate[700], 
+    fontSize: 16,
+    textAlignVertical: 'top'
+  },
+  deleteButton: { 
+    padding: 15, 
+    alignItems: 'center', 
+    backgroundColor: colors.glass.dark, 
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: colors.state.error 
+  },
+  deleteButtonText: { 
+    color: colors.state.error, 
+    fontSize: 16, 
+    fontWeight: 'bold' 
+  },
 });

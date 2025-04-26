@@ -21,10 +21,10 @@ const keyOptions = [
     },
     {
         id: '2',
-        title: 'Empréstimo de Chave',
+        title: 'Empréstimo de Chave(área admnistrativa)',
         icon: 'swap-horizontal',
         action: () => router.push('/(panel)/keys/borrow-key'),
-        preview: 'Solicite o empréstimo de uma chave disponível.',
+        preview: 'verifique o fluxo de empréstimos, altere, exclua, filtre sua chave.',
         emUso: true, // <- Está em uso
     },
     {
@@ -32,7 +32,7 @@ const keyOptions = [
         title: 'Minhas Chaves',
         icon: 'key',
         action: () => router.push('/(panel)/keys/my-keys'),
-        preview: 'Veja e gerencie suas chaves cadastradas.',
+        preview: 'Verifique o histórico de chaves cadastradas.',
         emUso: false,
     },
     // Novo card para gerenciamento de usuários

@@ -17,14 +17,14 @@ const keyOptions = [
         title: 'Empréstimo de Chave',
         icon: 'swap-horizontal',
         action: () => router.push('/(panel)/keys/borrow-key'),
-        preview: 'Solicite o empréstimo de uma chave disponível.',
+        preview: 'Faça o empréstimo de uma chave disponível.',
     },
     {
         id: '3',
-        title: 'Minhas Chaves',
+        title: 'Histórico de chaves',
         icon: 'key',
         action: () => router.push('/(panel)/keys/my-keys'),
-        preview: 'Veja e gerencie suas chaves cadastradas.',
+        preview: 'Veja o seu histórico de chaves.',
     },
 ];
 

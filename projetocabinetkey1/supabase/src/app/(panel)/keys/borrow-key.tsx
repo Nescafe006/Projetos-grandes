@@ -27,9 +27,9 @@ export default function BorrowKey() {
     const [editKey, setEditKey] = useState<Key | null>(null);
     const [newName, setNewName] = useState('');
     const [newDescription, setNewDescription] = useState('');
-    const [favorites, setFavorites] = useState<string[]>([]); // novo estado
-
-
+    const [favorites, setFavorites] = useState<string[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
 
     const loadUserAndKeys = async () => {
         setLoading(true);
@@ -52,7 +52,6 @@ export default function BorrowKey() {
 
             if (profileError) {
                 console.error('Erro ao obter perfil:', profileError.message);
-                // Tratar como não-administrador se o perfil não existir
                 setIsAdmin(false);
             } else {
                 setIsAdmin(profile.tipo_usuario === 'administrador');
@@ -82,7 +81,6 @@ export default function BorrowKey() {
 
                 if (usersError) {
                     console.error('Erro ao carregar nomes de usuários:', usersError.message);
-                    // Continuar sem nomes, usando fallback
                 } else {
                     userNames = Object.fromEntries(usersData.map(user => [user.id, user.nome]));
                 }
@@ -272,7 +270,6 @@ export default function BorrowKey() {
         }
     };
 
-
     const toggleFavorite = (keyId: string) => {
         const isFavorited = favorites.includes(keyId);
 
@@ -294,14 +291,21 @@ export default function BorrowKey() {
         );
     };
 
-
     const filteredKeys = keys.filter((key) => {
-        if (filter === 'all') return true;
-        if (filter === 'favorites') return favorites.includes(key.id);
-        return key.status === filter;
-      });
+        // Apply filter first
+        let matchesFilter = true;
+        if (filter === 'favorites') matchesFilter = favorites.includes(key.id);
+        else if (filter !== 'all') matchesFilter = key.status === filter;
 
-      const renderKeyItem = ({ item }: { item: Key }) => {
+        // Then apply search if query exists
+        const matchesSearch = searchQuery === '' || 
+            key.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (key.description && key.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return matchesFilter && matchesSearch;
+    });
+
+    const renderKeyItem = ({ item }: { item: Key }) => {
         if (!item) return null;
         const isOwner = userId === item.user_id;
         const statusColor = item.status === 'available' ? colors.neon.aqua : colors.slate[500];
@@ -371,7 +375,6 @@ export default function BorrowKey() {
         );
     };
 
-
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -380,6 +383,9 @@ export default function BorrowKey() {
                     <Ionicons name="arrow-back" size={24} color={colors.pearl} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Empréstimo de Chave</Text>
+                <TouchableOpacity onPress={() => setShowSearch(!showSearch)} style={styles.searchButton}>
+                    <Ionicons name="search" size={24} color={colors.pearl} />
+                </TouchableOpacity>
             </View>
 
             {isEditing ? (
@@ -389,12 +395,14 @@ export default function BorrowKey() {
                         placeholder="Nome da chave"
                         value={newName}
                         onChangeText={setNewName}
+                        placeholderTextColor={colors.slate[500]}
                     />
                     <TextInput
                         style={styles.input}
                         placeholder="Descrição da chave"
                         value={newDescription}
                         onChangeText={setNewDescription}
+                        placeholderTextColor={colors.slate[500]}
                     />
                     <TouchableOpacity style={styles.saveButton} onPress={handleEditKey}>
                         <Text style={styles.saveButtonText}>Salvar</Text>
@@ -405,20 +413,34 @@ export default function BorrowKey() {
                 </View>
             ) : (
                 <>
+                    {showSearch && (
+                        <View style={styles.searchContainer}>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Buscar chave..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                placeholderTextColor={colors.slate[500]}
+                            />
+                            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
+                                <Ionicons name="close" size={20} color={colors.pearl} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
                     <View style={styles.filterContainer}>
-  <TouchableOpacity onPress={() => setFilter('all')}>
-    <Text style={[styles.filterText, filter === 'all' && styles.activeFilter]}>Todas</Text>
-  </TouchableOpacity>
-  <TouchableOpacity onPress={() => setFilter('available')}>
-    <Text style={[styles.filterText, filter === 'available' && styles.activeFilter]}>Disponíveis</Text>
-  </TouchableOpacity>
-  <TouchableOpacity onPress={() => setFilter('borrowed')}>
-    <Text style={[styles.filterText, filter === 'borrowed' && styles.activeFilter]}>Emprestadas</Text>
-  </TouchableOpacity>
-  <TouchableOpacity onPress={() => setFilter('favorites')}>
-    <Text style={[styles.filterText, filter === 'favorites' && styles.activeFilter]}>Favoritas</Text>
-  </TouchableOpacity>
-</View>
+                        <TouchableOpacity onPress={() => setFilter('all')}>
+                            <Text style={[styles.filterText, filter === 'all' && styles.activeFilter]}>Todas</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setFilter('available')}>
+                            <Text style={[styles.filterText, filter === 'available' && styles.activeFilter]}>Disponíveis</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setFilter('borrowed')}>
+                            <Text style={[styles.filterText, filter === 'borrowed' && styles.activeFilter]}>Emprestadas</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setFilter('favorites')}>
+                            <Text style={[styles.filterText, filter === 'favorites' && styles.activeFilter]}>Favoritas</Text>
+                        </TouchableOpacity>
+                    </View>
                     {loading ? (
                         <ActivityIndicator color={colors.pearl} size="large" />
                     ) : (
@@ -427,6 +449,11 @@ export default function BorrowKey() {
                             renderItem={renderKeyItem}
                             keyExtractor={(item) => item.id}
                             contentContainerStyle={styles.listContainer}
+                            ListEmptyComponent={
+                                <Text style={styles.emptyListText}>
+                                    {searchQuery ? 'Nenhuma chave encontrada' : 'Nenhuma chave disponível'}
+                                </Text>
+                            }
                         />
                     )}
                 </>
@@ -442,7 +469,7 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
+        justifyContent: 'space-between',
         alignItems: 'center',
         padding: 20,
         backgroundColor: colors.slate[800],
@@ -450,10 +477,34 @@ const styles = StyleSheet.create({
     backButton: {
         marginRight: 10,
     },
+    searchButton: {
+        marginLeft: 10,
+    },
     headerTitle: {
         fontSize: 24,
         color: colors.pearl,
         fontWeight: 'bold',
+        flex: 1,
+        textAlign: 'center',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        backgroundColor: colors.slate[800],
+    },
+    searchInput: {
+        flex: 1,
+        height: 40,
+        backgroundColor: colors.slate[700],
+        color: colors.pearl,
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        marginRight: 10,
+    },
+    clearSearchButton: {
+        padding: 5,
     },
     filterContainer: {
         flexDirection: 'row',
@@ -500,6 +551,12 @@ const styles = StyleSheet.create({
     listContainer: {
         paddingBottom: 20,
     },
+    emptyListText: {
+        color: colors.pearl,
+        textAlign: 'center',
+        marginTop: 20,
+        fontSize: 16,
+    },
     editForm: {
         padding: 20,
         backgroundColor: colors.slate[800],
@@ -522,6 +579,7 @@ const styles = StyleSheet.create({
     saveButtonText: {
         color: colors.slate[900],
         textAlign: 'center',
+        fontWeight: 'bold',
     },
     cancelButton: {
         marginTop: 10,
@@ -532,6 +590,7 @@ const styles = StyleSheet.create({
     cancelButtonText: {
         color: colors.pearl,
         textAlign: 'center',
+        fontWeight: 'bold',
     },
     actionButtons: {
         flexDirection: 'row',
