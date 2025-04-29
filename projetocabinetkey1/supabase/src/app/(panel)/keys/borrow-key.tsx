@@ -13,6 +13,7 @@ type Key = {
     status: string;
     user_id: string | null;
     borrower_name?: string | null;
+    created_at: string;
 };
 
 export default function BorrowKey() {
@@ -31,10 +32,24 @@ export default function BorrowKey() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
 
-    const loadUserAndKeys = async () => {
+
+
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year:'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+
+        });
+    }
+
+   const loadUserAndKeys = async () => {
         setLoading(true);
         try {
-            // Obter usuário autenticado
             const { data: { user }, error: userError } = await supabase.auth.getUser();
             if (userError || !user) {
                 console.error('Erro ao obter usuário:', userError?.message || 'Usuário não encontrado');
@@ -43,7 +58,6 @@ export default function BorrowKey() {
             setUserId(user.id);
             console.log('Usuário autenticado:', user.id);
 
-            // Verificar se o usuário é administrador
             const { data: profile, error: profileError } = await supabase
                 .from('usuario')
                 .select('tipo_usuario')
@@ -58,10 +72,9 @@ export default function BorrowKey() {
                 console.log('É administrador:', profile.tipo_usuario === 'administrador');
             }
 
-            // Carregar todas as chaves
             const { data: keysData, error: keysError } = await supabase
                 .from('keys')
-                .select('id, name, description, status, user_id')
+                .select('id, name, description, status, user_id, created_at') // Added created_at
                 .order('created_at', { ascending: false });
 
             if (keysError) {
@@ -69,7 +82,6 @@ export default function BorrowKey() {
                 throw new Error(`Falha ao carregar chaves: ${keysError.message}`);
             }
 
-            // Obter nomes dos usuários para chaves emprestadas
             const userIds = [...new Set(keysData.filter(key => key.user_id).map(key => key.user_id))] as string[];
             let userNames: { [key: string]: string | null } = {};
 
@@ -86,7 +98,6 @@ export default function BorrowKey() {
                 }
             }
 
-            // Mapear chaves com nomes dos usuários
             const formattedKeys = keysData.map((key) => ({
                 ...key,
                 borrower_name: key.user_id ? userNames[key.user_id] || 'usuário desconhecido' : null,
@@ -105,6 +116,7 @@ export default function BorrowKey() {
     useEffect(() => {
         loadUserAndKeys();
     }, []);
+
 
     const handleBorrowKey = async (keyId: string) => {
         setBorrowing(keyId);
@@ -323,7 +335,12 @@ export default function BorrowKey() {
                     <View style={styles.keyInfo}>
                         <Text style={styles.keyName}>{item.name}</Text>
                         {item.description && <Text style={styles.keyDescription}>{item.description}</Text>}
-                        <Text style={[styles.keyStatus, { color: statusColor }]}>Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'A chave foi pega por você' : `Em posse de ${item.borrower_name || 'usuário desconhecido'}`}</Text>
+                        <Text style={[styles.keyStatus, { color: statusColor }]}>
+                            Status: {item.status === 'available' ? 'Disponível' : isOwner ? 'A chave foi pega por você' : `Em posse de ${item.borrower_name || 'usuário desconhecido'}`}
+                        </Text>
+                        <Text style={styles.keyRegistered}>
+                            Registrada em: {formatDate(item.created_at)}
+                        </Text>
                     </View>
                     <View style={styles.actionButtons}>
                         {borrowing === item.id || returning === item.id ? (
@@ -547,6 +564,11 @@ const styles = StyleSheet.create({
     },
     keyStatus: {
         fontSize: 14,
+    },
+    keyRegistered: {
+        fontSize: 14,
+        color: colors.pearl,
+        marginTop: 4,
     },
     listContainer: {
         paddingBottom: 20,
