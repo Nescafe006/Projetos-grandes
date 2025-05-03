@@ -76,7 +76,6 @@ function MainLayout() {
      
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)/signin/login" />
-      <Stack.Screen name="(auth)/signup/page" />
       <Stack.Screen name="(auth)/signin/esqueceu-senha" />
       <Stack.Screen name="(auth)/signup/cadastro" />
       <Stack.Screen name="(panel)/profile/menu" />
@@ -84,7 +83,6 @@ function MainLayout() {
       <Stack.Screen name="(panel)/profile/gerenciar" />
       <Stack.Screen name="(panel)/profile/edit-profile" />
       <Stack.Screen name="(panel)/keys/borrow-key" />
-      <Stack.Screen name="(panel)/keys/borrow-key-usuario" />
       <Stack.Screen name="(panel)/keys/my-keys" />
       <Stack.Screen name="(panel)/keys/register-key" />
       <Stack.Screen name="(panel)/keys/chave-admin" />

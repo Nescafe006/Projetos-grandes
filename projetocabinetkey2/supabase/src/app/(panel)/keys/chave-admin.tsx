@@ -78,7 +78,7 @@ export default function KeysDashboard() {
                     <Animated.View
                         style={[styles.cardContent, { transform: [{ scale }], opacity }]}
                     >
-                        <Ionicons name={item.icon} size={48} color={colors.neon.aqua} />
+                       <Ionicons name={item.icon as 'push' | 'map' | 'filter' | 'swap-horizontal'} size={48} color={colors.neon.aqua} />
                         <Text style={styles.cardTitle}>{item.title}</Text>
                         <Text style={styles.previewText}>{item.preview}</Text>
                     </Animated.View>

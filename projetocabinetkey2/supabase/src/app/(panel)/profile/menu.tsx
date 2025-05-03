@@ -237,7 +237,7 @@ export default function Profile() {
     };
 
     const handleContactSupport = async () => {
-        showAlert('info', 'Suporte', 'Estamos trabalhando nisso! Em breve você poderá contatar nosso suporte.');
+        showAlert('info' as 'error', 'Suporte', 'Estamos trabalhando nisso! Em breve você poderá contatar nosso suporte.');
     };
 
     const handleCheckKeys = () => {

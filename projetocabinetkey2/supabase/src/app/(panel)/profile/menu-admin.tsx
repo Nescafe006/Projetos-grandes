@@ -156,9 +156,7 @@ export default function Profile() {
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.header}>
-                <TouchableOpacity onPress={handleGoHome} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={colors.pearl} />
-                </TouchableOpacity>
+             
                 <Text style={styles.headerTitle}>Meu Perfil</Text>
             </View>
 
