@@ -1,0 +1,2 @@
+export const supaUrl = 'https://uilkwilxhmktvimauohh.supabase.co'
+export const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbGt3aWx4aG1rdHZpbWF1b2hoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1MjU0MDgsImV4cCI6MjA1OTEwMTQwOH0.-3i2wanCZC3YMx6MWNpDJOdINNHk_M-t8ZJCrwpwfnk'

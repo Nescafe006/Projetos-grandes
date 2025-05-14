@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Cabinet key",
+    "slug": "supabase",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "supabase",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/images/icon.png",
+
+   "splash": {
+  "image": "./assets/images/splashscreen_logo.png",
+  "resizeMode": "contain",
+  "backgroundColor": "#ffffff"
+  },
+
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.joao2006.supabase"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "f532b61c-9778-4e07-b7b3-551f107b44e1"
+      }
+    }
+  }
+}
