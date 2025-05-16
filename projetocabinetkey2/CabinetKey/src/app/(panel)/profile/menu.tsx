@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import Animated, { FadeInDown, FadeInUp, SlideInRight, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
 import { Stack } from 'expo-router';
 
 export default function Profile() {
@@ -29,28 +29,16 @@ export default function Profile() {
     const AnimatedText = Animated.Text;
     const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-    const scale = useSharedValue(0);
-    const opacity = useSharedValue(0);
-
-    const animatedModalStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: withSpring(scale.value, { damping: 15, stiffness: 100 }) }],
-        opacity: withSpring(opacity.value, { damping: 20, stiffness: 100 }),
-    }));
-
     const showAlert = (type: 'success' | 'error', title: string, message: string, errorDetails?: any) => {
         setAlertConfig({ type, title, message, errorDetails });
         setAlertVisible(true);
-        scale.value = 1;
-        opacity.value = 1;
         if (errorDetails) {
             console.log('Detalhes do erro no CustomAlert:', errorDetails);
         }
     };
 
     const hideAlert = () => {
-        scale.value = 0;
-        opacity.value = 0;
-        setTimeout(() => setAlertVisible(false), 300); // Wait for animation to finish
+        setAlertVisible(false);
     };
 
     const CustomAlert = () => (
@@ -61,7 +49,7 @@ export default function Profile() {
             onRequestClose={hideAlert}
         >
             <View style={styles.modalOverlay}>
-                <AnimatedView style={[styles.alertCard, animatedModalStyle]}>
+                <AnimatedView style={styles.alertCard} entering={FadeInUp.duration(300)}>
                     <Ionicons
                         name={alertConfig.type === 'success' ? 'checkmark-circle' : 'alert-circle'}
                         size={40}
@@ -85,11 +73,7 @@ export default function Profile() {
             if (error) throw new Error(error.message);
     
             setAuth(null);
-    
-            // Garante que a navegação ocorra apenas após o estado ser limpo
             router.push('/(auth)/signin/login');
-    
-          
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Erro ao sair da conta. Tente novamente!';
             showAlert('error', 'Ops, algo deu errado!', errorMessage);
@@ -127,8 +111,6 @@ export default function Profile() {
                 .upload(filePath, blob, {
                     contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
                 });
-
-          
 
             const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
             console.log('URL pública obtida:', data.publicUrl);
@@ -236,10 +218,9 @@ export default function Profile() {
         }
     };
 
-      const handleContactSupport = async () => {
-            // Implementação futura
-            router.push('/(panel)/profile/suporte');
-        };
+    const handleContactSupport = async () => {
+        router.push('/(panel)/profile/suporte');
+    };
 
     const handleCheckKeys = () => {
         router.push('/(panel)/keys/page');
@@ -289,7 +270,6 @@ export default function Profile() {
 
     return (
         <ImageBackground
-          
             style={styles.container}
             resizeMode="cover"
         >
@@ -297,12 +277,11 @@ export default function Profile() {
             <Stack.Screen options={{ headerShown: false }} />
             <CustomAlert />
             <AnimatedView
-                entering={FadeInUp.duration(600)}
+                entering={FadeInUp.duration(500)}
                 style={styles.header}
             >
-     
                 <AnimatedText
-                    entering={FadeInDown.duration(600).delay(200)}
+                    entering={FadeInDown.duration(500).delay(100)}
                     style={styles.headerTitle}
                 >
                     Meu Perfil
@@ -310,34 +289,33 @@ export default function Profile() {
             </AnimatedView>
 
             <AnimatedView
-                entering={FadeInDown.duration(600).delay(300)}
+                entering={FadeInDown.duration(500).delay(200)}
                 style={styles.avatarContainer}
             >
                 <View style={styles.avatarWrapper}>
                     {userDetails.avatarUrl ? (
-                        <AnimatedView entering={FadeInUp.duration(600).delay(400)}>
+                        <AnimatedView entering={FadeInUp.duration(500).delay(300)}>
                             <Image
                                 source={{ uri: userDetails.avatarUrl }}
                                 style={styles.avatar}
                             />
                         </AnimatedView>
                     ) : (
-                        <AnimatedView entering={FadeInUp.duration(600).delay(400)}>
+                        <AnimatedView entering={FadeInUp.duration(500).delay(300)}>
                             <View style={styles.avatarPlaceholder}>
                                 <Ionicons name="person" size={48} color={colors.neon.aqua} />
                             </View>
                         </AnimatedView>
                     )}
-                  
                 </View>
                 <AnimatedText
-                    entering={FadeInDown.duration(600).delay(600)}
+                    entering={FadeInDown.duration(500).delay(400)}
                     style={styles.userName}
                 >
                     {userDetails.fullName}
                 </AnimatedText>
                 <AnimatedText
-                    entering={FadeInDown.duration(600).delay(700)}
+                    entering={FadeInDown.duration(500).delay(500)}
                     style={styles.userEmail}
                 >
                     {user?.email}
@@ -345,7 +323,7 @@ export default function Profile() {
             </AnimatedView>
 
             <AnimatedView
-                entering={SlideInRight.duration(600).delay(800)}
+                entering={SlideInRight.duration(500).delay(600)}
                 style={styles.infoCard}
             >
                 <View style={styles.infoItem}>
@@ -359,13 +337,13 @@ export default function Profile() {
             </AnimatedView>
 
             <AnimatedView
-                entering={SlideInRight.duration(600).delay(900)}
+                entering={SlideInRight.duration(500).delay(700)}
                 style={styles.menuContainer}
             >
                 <AnimatedTouchableOpacity
-                    entering={FadeInDown.duration(600).delay(1000)}
                     style={styles.menuItem}
                     onPress={handleEditProfile}
+                    entering={FadeInDown.duration(500).delay(800)}
                 >
                     <Ionicons name="create" size={20} color={colors.neon.aqua} />
                     <Text style={styles.menuItemText}>Editar Perfil</Text>
@@ -373,9 +351,9 @@ export default function Profile() {
                 </AnimatedTouchableOpacity>
 
                 <AnimatedTouchableOpacity
-                  
                     style={styles.menuItem}
                     onPress={handleCheckKeys}
+                    entering={FadeInDown.duration(500).delay(900)}
                 >
                     <Ionicons name="key" size={20} color={colors.neon.aqua} />
                     <Text style={styles.menuItemText}>Minhas Chaves</Text>
@@ -383,9 +361,9 @@ export default function Profile() {
                 </AnimatedTouchableOpacity>
 
                 <AnimatedTouchableOpacity
-                  
                     style={styles.menuItem}
                     onPress={handleContactSupport}
+                    entering={FadeInDown.duration(500).delay(1000)}
                 >
                     <Ionicons name="help-circle" size={20} color={colors.neon.aqua} />
                     <Text style={styles.menuItemText}>Suporte</Text>
@@ -394,10 +372,10 @@ export default function Profile() {
             </AnimatedView>
 
             <AnimatedTouchableOpacity
-              
                 style={styles.logoutButton}
                 onPress={handleSignout}
                 disabled={loading}
+                entering={FadeInDown.duration(500).delay(1100)}
             >
                 {loading ? (
                     <ActivityIndicator color={colors.pearl} />
@@ -431,9 +409,6 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: colors.slate[700],
     },
-    backButton: {
-        marginRight: 15,
-    },
     headerTitle: {
         fontSize: 22,
         fontWeight: '700',
@@ -466,19 +441,6 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: colors.neon.aqua,
         backgroundColor: colors.slate[700],
-    },
-    editAvatarButton: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        backgroundColor: colors.slate[600],
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.slate[700],
     },
     userName: {
         fontSize: 22,

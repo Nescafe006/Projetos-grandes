@@ -60,16 +60,21 @@ export default function Login() {
     const AnimatedView = Animated.View;
     const AnimatedText = Animated.Text;
     
-    const showAlert = (title: string, message: string, type: 'success' | 'error') => {
-      setAlertTitle(title);
-      setAlertMessage(message);
-      setAlertType(type);
-      setAlertVisible(true);
+    const showAlert = (title: string, message: string, type: 'success' | 'error', callback?: () => void) => {
+      const delay = type === 'success' ? 0 : 0; // 0ms for success, 5s for error
+      const duration = type === 'success' ? 3000 : 3000; // 3s for success, 1s for error
       
-      // Auto-hide após 10 segundos para alertas de sucesso, 7 segundos para erros
       setTimeout(() => {
-        setAlertVisible(false);
-      }, type === 'success' ? 10000 : 7000);
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertType(type);
+        setAlertVisible(true);
+        
+        setTimeout(() => {
+          setAlertVisible(false);
+          if (callback) callback(); // Execute callback after alert hides (for success navigation)
+        }, duration);
+      }, delay);
     };
 
     const hideAlert = () => {
@@ -114,19 +119,13 @@ export default function Login() {
     
                     if (insertError) throw new Error('Não foi possível criar o perfil');
     
-                    showAlert('Bem-vindo!', 'Login realizado com sucesso. Seu perfil foi criado!', 'success');
-                    setTimeout(() => {
-                        proceedWithLogin({ tipo_usuario: userType, avatar_url: null }, userType, router, user.id);
-                    }, 3000); // Delay adicionado aqui
+                    proceedWithLogin({ tipo_usuario: userType, avatar_url: null }, userType, router, user.id);
                     return;
                 }
                 throw new Error('Erro ao buscar perfil: ' + profileError.message);
             }
     
-            showAlert('Bem-vindo!', 'Login realizado com sucesso. Seja bem-vindo!', 'success');
-            setTimeout(() => {
-                proceedWithLogin(profile, userType, router, user.id);
-            }, 3000); // Delay aqui também
+            proceedWithLogin(profile, userType, router, user.id);
         } catch (error) {
             console.error('Erro no login:', error);
             showAlert('Erro', error instanceof Error ? error.message : 'Falha no login', 'error');
@@ -142,14 +141,24 @@ export default function Login() {
         userId: string
     ) {
         if (selectedUserType === 'administrador' && profile.tipo_usuario !== 'administrador') {
-            throw new Error('Você não tem permissões de administrador');
+            showAlert('Acesso Negado', 'Esta conta não possui permissões administrativas. Por favor, selecione "Usuário" ou faça login com uma conta de administrador.', 'error');
+            return;
         }
 
         if (selectedUserType === 'usuario' && profile.tipo_usuario === 'administrador') {
-            showAlert('Aviso', 'Você está logando como usuário normal. Selecione "Admin" para acessar o painel administrativo.', 'error');
+            showAlert('Acesso Negado', 'Esta conta é de administrador. Por favor, selecione "Admin" para acessar o painel administrativo.', 'error');
+            return;
         }
 
-        navigateAfterLogin(profile.tipo_usuario as 'usuario' | 'administrador', router, userId);
+        // Show success alert and navigate after 3 seconds
+        const isNewProfile = profile.tipo_usuario === userType && !profile.avatar_url;
+        showAlert('Bem-vindo!', 
+            isNewProfile 
+                ? 'Login realizado com sucesso. Seu perfil foi criado!' 
+                : 'Login realizado com sucesso. Seja bem-vindo!', 
+            'success',
+            () => navigateAfterLogin(profile.tipo_usuario as 'usuario' | 'administrador', router, userId)
+        );
     }
 
     return (
