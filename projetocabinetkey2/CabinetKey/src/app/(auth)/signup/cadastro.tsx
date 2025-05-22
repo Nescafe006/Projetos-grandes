@@ -13,7 +13,7 @@ export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'user' | 'admin'>('user');
+  const [role, setRole] = useState('user');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -24,26 +24,27 @@ export default function Signup() {
   const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   const checkAdminLimit = async () => {
-    const { count, error } = await supabase
-      .from('usuario')
-      .select('*', { count: 'exact', head: true })
-      .eq('tipo_usuario', 'administrador');
-
-    if (error) {
-      console.error('Erro ao verificar limite de administradores:', error.message, error.code, error);
-      throw new Error('Falha ao verificar limite de administradores.');
+    try {
+      const { data, error } = await supabase.rpc('count_admins');
+      if (error) {
+        console.error('Erro ao verificar limite de administradores:', error);
+        setErrorMsg('Erro ao verificar limite de administradores.');
+        throw error;
+      }
+      return data || 0;
+    } catch (err) {
+      console.error('Erro em checkAdminLimit:', err);
+      throw err;
     }
-
-    return count || 0;
   };
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
-      setErrorMsg('Por favor, preencha todos os campos.');
+      setErrorMsg('Preencha todos os campos.');
       return;
     }
     if (!email.includes('@') || !email.includes('.')) {
-      setErrorMsg('Por favor, insira um email válido.');
+      setErrorMsg('Email inválido.');
       return;
     }
     if (password.length < 6) {
@@ -59,55 +60,64 @@ export default function Signup() {
       if (role === 'admin') {
         const adminCount = await checkAdminLimit();
         if (adminCount >= 2) {
-          setErrorMsg('Limite de administradores atingido. Você só pode se cadastrar como usuário normal.');
+          setErrorMsg('Limite de administradores atingido. Cadastre-se como usuário.');
           return;
         }
       }
 
-      // Sign up with additional user metadata
       const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: {
-            name: name,
-            role: role,
-          }
-        }
+        email,
+        password,
+        options: { data: { name, role } }
       });
 
       if (error) {
-        console.error('Signup error:', error);
-        if (error.message.includes('already exists')) {
-          setErrorMsg('Este email já está cadastrado.');
-        } else {
-          setErrorMsg('Erro ao criar conta: ' + error.message);
-        }
+        console.error('Erro no cadastro:', error);
+        setErrorMsg(error.message.includes('already exists') ? 'Email já cadastrado.' : `Erro ao criar conta: ${error.message}`);
         throw error;
       }
 
       if (data.user) {
-        // Wait for the trigger to execute
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Update user role if admin
+        let attempts = 5;
+        let userRow = null;
+
+        while (attempts > 0) {
+          const { data: userData, error: fetchError } = await supabase
+            .from('usuario')
+            .select('id')
+            .eq('id', data.user.id)
+            .single();
+
+          if (!fetchError) {
+            userRow = userData;
+            break;
+          }
+          attempts--;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        if (!userRow) {
+          throw new Error('Falha ao verificar usuário na tabela usuario.');
+        }
+
         if (role === 'admin') {
           const { error: updateError } = await supabase
             .from('usuario')
             .update({ tipo_usuario: 'administrador' })
             .eq('id', data.user.id);
-            
-          if (updateError) throw updateError;
+
+          if (updateError) {
+            console.error('Erro ao atualizar tipo_usuario:', updateError);
+            throw updateError;
+          }
         }
 
-        setSuccessMsg('Cadastro realizado com sucesso! Redirecionando...');
-        setTimeout(() => {
-          router.replace('/(auth)/signin/login');
-        }, 3000);
+        setSuccessMsg('Cadastro concluído! Redirecionando...');
+        setTimeout(() => router.replace('/(auth)/signin/login'), 2000);
       }
-    } catch (error) {
-      console.error('Signup failed:', error);
-      setErrorMsg(error instanceof Error ? error.message : 'Falha no cadastro');
+    } catch (error: any) {
+      console.error('Erro no cadastro:', error);
+      setErrorMsg(error.message || 'Falha no cadastro.');
     } finally {
       setLoading(false);
     }

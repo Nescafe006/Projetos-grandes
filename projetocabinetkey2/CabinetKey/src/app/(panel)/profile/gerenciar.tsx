@@ -23,25 +23,25 @@ export default function GerenciarUsuarios() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Carrega os usuários
-  const loadUserAndKeys = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('usuario')
-        .select('id, nome, email, avatar_url, criado_em, ativo, tipo_usuario')
-        .eq('ativo', true)
-        .order('criado_em', { ascending: false });
+  // Carrega todos os usuários (ativos e inativos)
+ const loadUserAndKeys = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('usuario')
+      .select('id, nome, email, avatar_url, criado_em, ativo, tipo_usuario')
+      .order('criado_em', { ascending: false }); // Remove todos os filtros para trazer todos os usuários
 
-      if (error) throw error;
-      setUsers(data || []);
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao carregar usuários');
-      console.error('Erro ao carregar usuários:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    if (error) throw error;
+    setUsers(data || []);
+  } catch (error) {
+    Alert.alert('Erro', 'Falha ao carregar usuários');
+    console.error('Erro ao carregar usuários:', error);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
+
 
   useEffect(() => {
     setLoading(true);
@@ -61,19 +61,23 @@ export default function GerenciarUsuarios() {
     });
   };
 
-  // Desativa um usuário
-  const handleDelete = async (id: string) => {
+  // Atualiza o status do usuário (ativo/inativo)
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
         .from('usuario')
-        .update({ ativo: false })
+        .update({ ativo: !currentStatus })
         .eq('id', id);
 
       if (error) throw error;
-      setUsers(prev => prev.filter(user => user.id !== id));
-      Alert.alert('Sucesso', 'Usuário desativado!');
+      
+      setUsers(prev => prev.map(user => 
+        user.id === id ? { ...user, ativo: !currentStatus } : user
+      ));
+      
+      Alert.alert('Sucesso', `Usuário ${currentStatus ? 'desativado' : 'reativado'}!`);
     } catch (error) {
-      Alert.alert('Erro', 'Falha ao desativar usuário');
+      Alert.alert('Erro', `Falha ao ${currentStatus ? 'desativar' : 'reativar'} usuário`);
     }
   };
 
@@ -128,12 +132,16 @@ export default function GerenciarUsuarios() {
             styles.cardContainer,
             { 
               transform: [{ scale }], 
-              opacity,
+              
               marginVertical: CARD_MARGIN / 2,
+              opacity: item.ativo ? 1 : 0.7
             }
           ]}
         >
-          <View style={styles.card}>
+          <View style={[
+            styles.card,
+            !item.ativo && { borderColor: colors.red[500] }
+          ]}>
             <View style={styles.cardContent}>
               <View style={styles.avatarContainer}>
                 {item.avatar_url ? (
@@ -162,10 +170,12 @@ export default function GerenciarUsuarios() {
                   styles.userTypeBadge,
                   item.tipo_usuario === 'administrador' 
                     ? styles.adminBadge 
-                    : styles.userBadge
+                    : styles.userBadge,
+                  !item.ativo && styles.inactiveBadge
                 ]}>
                   <Text style={styles.userTypeText}>
                     {item.tipo_usuario === 'administrador' ? 'Administrador' : 'Usuário'}
+                    {!item.ativo && ' (Inativo)'}
                   </Text>
                 </View>
               </View>
@@ -179,29 +189,44 @@ export default function GerenciarUsuarios() {
             </View>
 
             <View style={styles.actionsContainer}>
-             <TouchableOpacity 
-    onPress={() => router.push(`/(panel)/profile/edit-users?id=${item.id}`)}
-    style={[styles.actionButton, styles.editButton]}
->
-    <Ionicons name="pencil" size={18} color={colors.pearl} />
-    <Text style={styles.actionButtonText}>Editar</Text>
-</TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => {
+                  setEditingUser({ id: item.id, nome: item.nome, email: item.email });
+                  setNewUserName(item.nome);
+                  setNewUserEmail(item.email);
+                  setIsEditingUser(true);
+                }}
+                style={[styles.actionButton, styles.editButton]}
+              >
+                <Ionicons name="pencil" size={18} color={colors.pearl} />
+                <Text style={styles.actionButtonText}>Editar</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, styles.deleteButton]}
+                style={[
+                  styles.actionButton, 
+                  item.ativo ? styles.deleteButton : styles.activateButton
+                ]}
                 onPress={() => {
                   Alert.alert(
                     'Confirmar',
-                    `Deseja desativar ${item.nome || 'este usuário'}?`,
+                    `Deseja ${item.ativo ? 'desativar' : 'reativar'} ${item.nome || 'este usuário'}?`,
                     [
                       { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Desativar', onPress: () => handleDelete(item.id) }
+                      { text: item.ativo ? 'Desativar' : 'Reativar', 
+                        onPress: () => handleToggleStatus(item.id, item.ativo) }
                     ]
                   );
                 }}
               >
-                <Ionicons name="trash" size={18} color={colors.pearl} />
-                <Text style={styles.actionButtonText}>Desativar</Text>
+                <Ionicons 
+                  name={item.ativo ? "trash" : "refresh"} 
+                  size={18} 
+                  color={colors.pearl} 
+                />
+                <Text style={styles.actionButtonText}>
+                  {item.ativo ? 'Desativar' : 'Reativar'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -429,9 +454,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.slate[500],
   },
+  inactiveBadge: {
+    borderColor: colors.red[500],
+    opacity: 0.7,
+  },
   userTypeText: {
     fontSize: 12,
     fontWeight: '600',
+    color: colors.pearl,
   },
   dateContainer: {
     flexDirection: 'row',
@@ -472,6 +502,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slate[600],
     borderWidth: 1,
     borderColor: colors.red[500],
+  },
+  activateButton: {
+    backgroundColor: colors.slate[600],
+    borderWidth: 1,
+    borderColor: colors.green[500],
   },
   actionButtonText: {
     color: colors.pearl,

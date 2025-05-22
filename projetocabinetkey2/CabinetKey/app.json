@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Cabinet Key",
-    "slug": "supabase",
+    "slug": "cabinet",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "supabase",

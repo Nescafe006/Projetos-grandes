@@ -74,7 +74,7 @@ function MainLayout() {
       }}
     >
      
-      <Stack.Screen name="index" />
+
       <Stack.Screen name="(auth)/signin/login" />
       <Stack.Screen name="(auth)/signin/esqueceu-senha" />
       <Stack.Screen name="(auth)/signup/cadastro" />
