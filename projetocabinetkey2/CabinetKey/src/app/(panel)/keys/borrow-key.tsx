@@ -8,7 +8,7 @@ import { Stack } from 'expo-router';
 
 type Key = {
     id: string;
-    name: string;
+    name: string
     description: string | null;
     status: string;
     user_id: string | null;
@@ -46,63 +46,37 @@ export default function BorrowKey() {
     };
 
     // Carrega usuário e chaves
-    const loadUserAndKeys = async () => {
-        setLoading(true);
-        try {
-            // Obtém usuário autenticado
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError || !user) throw new Error(userError?.message || 'Usuário não encontrado');
-            
-            setUserId(user.id);
-            console.log('Usuário autenticado:', user.id);
+const loadUserAndKeys = async () => {
+  setLoading(true);
+  try {
+    const { data: keys, error } = await supabase
+      .from('keys')
+      .select(`
+        id,
+        name,
+        description,
+        status,
+        user_id,
+        created_at,
+        usuario:user_id(nome, avatar_url)
+      `)
+      .order('created_at', { ascending: false });
 
-            // Verifica se é admin
-            const { data: profile, error: profileError } = await supabase
-                .from('usuario')
-                .select('tipo_usuario')
-                .eq('id', user.id)
-                .single();
+    if (error) throw error;
 
-            setIsAdmin(profile?.tipo_usuario === 'administrador');
-            console.log('É administrador:', profile?.tipo_usuario === 'administrador');
+const formattedKeys = keys.map((key: any) => ({
+  ...key,
+  borrower_name: key.user_id ? key.usuario?.nome || "Usuário desconhecido" : null,
+  borrower_avatar: key.user_id ? key.usuario?.avatar_url : null
+}));
 
-            // Busca todas as chaves
-            const { data: keysData, error: keysError } = await supabase
-                .from('keys')
-                .select('id, name, description, status, user_id, created_at')
-                .order('created_at', { ascending: false });
-
-            if (keysError) throw new Error(`Falha ao carregar chaves: ${keysError.message}`);
-
-            // Obtém nomes dos usuários que pegaram chaves
-            const userIds = [...new Set(keysData.filter(key => key.user_id).map(key => key.user_id))] as string[];
-            let userNames: ({ [key: string]: string | null }) = {};
-
-            if (userIds.length > 0) {
-                const { data: usersData, error: usersError } = await supabase
-                    .from('usuario')
-                    .select('id, nome')
-                    .in('id', userIds);
-
-                if (!usersError) {
-                    userNames = Object.fromEntries(usersData.map(user => [user.id, user.nome]));
-                }
-            }
-
-            // Formata as chaves com informações adicionais
-            const formattedKeys = keysData.map((key) => ({
-                ...key,
-                borrower_name: key.user_id ? userNames[key.user_id] || 'usuário desconhecido' : null,
-            }));
-
-            setKeys(formattedKeys || []);
-        } catch (error) {
-            console.error('Erro ao carregar chaves:', error);
-            Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao carregar as chaves.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    setKeys(formattedKeys);
+  } catch (error) {
+    Alert.alert("Erro", "Não foi possível carregar as chaves.");
+  } finally {
+    setLoading(false);
+  }
+};
 
     // Efeito para carregar dados inicialmente
     useEffect(() => {
@@ -110,64 +84,28 @@ export default function BorrowKey() {
     }, []);
 
     // Função para pegar uma chave
-    const handleBorrowKey = async (keyId: string) => {
-        setBorrowing(keyId);
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Usuário não autenticado.');
+  const handleBorrowKey = async (keyId: string) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Faça login primeiro');
 
-            const { data: key, error: keyError } = await supabase
-                .from('keys')
-                .select('id, name, status, user_id')
-                .eq('id', keyId)
-                .single();
+    const { error } = await supabase
+      .from('keys')
+      .update({
+        status: 'borrowed',
+        user_id: user.id
+      })
+      .eq('id', keyId)
+      .eq('status', 'available'); // Só atualiza se ainda estiver disponível
 
-            if (keyError) throw new Error(`Falha ao verificar chave: ${keyError.message}`);
-            if (key.status !== 'available' || (key.user_id && key.user_id !== user.id)) {
-                throw new Error('Esta chave não está disponível para empréstimo.');
-            }
-
-            Alert.alert(
-                'Confirmação',
-                `Tem certeza que deseja pegar a chave "${key.name || 'sem nome'}"?`,
-                [
-                    { text: 'Não', style: 'cancel', onPress: () => setBorrowing(null) },
-                    {
-                        text: 'Sim',
-                        onPress: async () => {
-                            // Atualiza status da chave
-                            const { error: updateError } = await supabase
-                                .from('keys')
-                                .update({ status: 'borrowed', user_id: user.id })
-                                .eq('id', keyId);
-
-                            if (updateError) throw new Error(`Falha ao atualizar chave: ${updateError.message}`);
-
-                            // Registra empréstimo
-                            const { error: loanError } = await supabase
-                                .from('loans')
-                                .insert({
-                                    key_id: keyId,
-                                    user_id: user.id,
-                                    borrowed_at: new Date().toISOString(),
-                                    status: 'active',
-                                });
-
-                            if (loanError) throw new Error(`Falha ao registrar empréstimo: ${loanError.message}`);
-
-                            Alert.alert('Sucesso', `A chave "${key.name || 'sem nome'}" agora está na sua posse!`);
-                            loadUserAndKeys();
-                        },
-                    },
-                ]
-            );
-        } catch (error) {
-            Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao solicitar o empréstimo.');
-        } finally {
-            setBorrowing(null);
-        }
-    };
-
+    if (error) throw error;
+    
+    Alert.alert('Sucesso', 'Chave reservada para você!');
+    loadUserAndKeys();
+  } catch (error) {
+    Alert.alert('Erro', error instanceof Error ? error.message : 'Chave já foi pega');
+  }
+};
     // Função para devolver uma chave
     const handleReturnKey = async (keyId: string, keyName: string) => {
         setReturning(keyId);

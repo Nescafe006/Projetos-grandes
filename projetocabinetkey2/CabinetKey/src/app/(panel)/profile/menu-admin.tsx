@@ -134,45 +134,43 @@ export default function Profile() {
         router.push('/(panel)/keys/chave-admin');
     };
 
-    // Carregar detalhes do usuário ao montar o componente
-    useEffect(() => {
-        const fetchUserDetails = async () => {
-            if (user) {
-                try {
-                    const { data, error } = await supabase
-                        .from('usuario')
-                        .select('full_name, avatar_url, role')
-                        .eq('user_id', user.id)
-                        .single();
+ useEffect(() => {
+    const fetchUserDetails = async () => {
+        if (user) {
+            try {
+                const { data, error } = await supabase
+                    .from('usuario')
+                    .select('nome, avatar_url, tipo_usuario') // Corrigido: full_name -> nome, role -> tipo_usuario
+                    .eq('id', user.id) // Corrigido: user_id -> id
+                    .single();
 
-                    if (error) {
-                        console.warn('Erro ao carregar perfil:', error);
-                        setUserDetails({
-                            fullName: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-                            avatarUrl: user.user_metadata?.avatar_url || null,
-                            role: user.user_metadata?.role || 'admin'
-                        });
-                    } else {
-                        setUserDetails({
-                            fullName: data.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Administrador',
-                            avatarUrl: data.avatar_url || user.user_metadata?.avatar_url || null,
-                            role: data.role || 'admin'
-                        });
-                    }
-                } catch (error) {
-                    console.error('Erro geral ao carregar detalhes:', error);
+                if (error) {
+                    console.warn('Erro ao carregar perfil:', error);
                     setUserDetails({
-                        fullName: user.email?.split('@')[0] || 'Administrador',
-                        avatarUrl: null,
-                        role: 'admin'
+                        fullName: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+                        avatarUrl: user.user_metadata?.avatar_url || null,
+                        role: user.user_metadata?.tipo_usuario || 'admin' // Ajustado para tipo_usuario
+                    });
+                } else {
+                    setUserDetails({
+                        fullName: data.nome || user.user_metadata?.name || user.email?.split('@')[0] || 'Administrador',
+                        avatarUrl: data.avatar_url || user.user_metadata?.avatar_url || null,
+                        role: data.tipo_usuario || 'admin' // Ajustado para tipo_usuario
                     });
                 }
+            } catch (error) {
+                console.error('Erro geral ao carregar detalhes:', error);
+                setUserDetails({
+                    fullName: user.email?.split('@')[0] || 'Administrador',
+                    avatarUrl: null,
+                    role: 'admin'
+                });
             }
-        };
+        }
+    };
 
-        fetchUserDetails();
-    }, [user]);
-
+    fetchUserDetails();
+}, [user]);
     // Animar a transição de opacidade ao carregar os dados
     useEffect(() => {
         Animated.timing(fadeAnim, {
@@ -226,7 +224,7 @@ export default function Profile() {
                 </View>
                 <View style={styles.infoItem}>
                     <Ionicons name="shield-checkmark" size={20} color={colors.neon.aqua} />
-                    <Text style={styles.infoText}>Conta {userDetails.role === 'admin' ? 'Administrativa' : 'de Usuário'}</Text>
+                    <Text style={styles.infoText}>Conta {userDetails.role === 'admin' ? 'Administrativa' : 'de Admnistrador'}</Text>
                 </View>
             </View>
 

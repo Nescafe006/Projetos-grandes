@@ -77,31 +77,30 @@ export default function LoanHistory() {
 
   // Carrega o histórico
   const loadLoanHistory = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('loans')
-        .select(`
-          id,
-          borrowed_at,
-          returned_at,
-          status,
-          user:usuario(nome, email),
-          key:keys(name)
-        `)
-        .order('borrowed_at', { ascending: false });
+  setLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from('loans')
+      .select(`
+        id,
+        borrowed_at,
+        returned_at,
+        status,
+        user:user_id(nome, email),
+        key:key_id(name, description)
+      `)
+      .order('borrowed_at', { ascending: false });
 
-      if (error) throw error;
-      
-      setLoans(data || []);
-      applyFilters(data || [], searchQuery, dateFilter);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar o histórico.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    if (error) throw error;
+    
+    setLoans(data || []);
+    applyFilters(data || [], searchQuery, dateFilter);
+  } catch (error) {
+    Alert.alert('Erro', 'Não foi possível carregar o histórico.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Aplica todos os filtros
   const applyFilters = (loansToFilter: Loan[], query: string, dateRange: string) => {

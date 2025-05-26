@@ -23,19 +23,74 @@ export default function GerenciarUsuarios() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Carrega todos os usuários (ativos e inativos)
- const loadUserAndKeys = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('usuario')
-      .select('id, nome, email, avatar_url, criado_em, ativo, tipo_usuario')
-      .order('criado_em', { ascending: false }); // Remove todos os filtros para trazer todos os usuários
+  type UserProfile = {
+  id: string;
+  nome: string;
+  email: string;
+  tipo_usuario: 'usuario' | 'administrador';
+  ativo: boolean;
+  bio?: string;
+  website?: string;
+  avatar_url?: string;
+  criado_em: string;
+  atualizado_em?: string;
+};
 
-    if (error) throw error;
-    setUsers(data || []);
+const loadUserAndKeys = async () => {
+  try {
+    setLoading(true);
+    setRefreshing(true);
+
+    // 1. First fetch from 'usuario' table
+    const { data: usuarios, error: usuarioError } = await supabase
+      .from('usuario')
+      .select('*')
+      .order('criado_em', { ascending: false });
+
+    if (usuarioError) throw usuarioError;
+
+    // 2. Fetch all auth users
+    const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+
+    if (authError) throw authError;
+
+    // 3. Combine data with proper type safety
+    const combinedUsers = authUsers.map(authUser => {
+      const usuario = usuarios?.find(u => u.id === authUser.id);
+      const authEmail = authUser.email ?? 'email@indefinido.com'; // Fallback email
+      const authCreatedAt = authUser.created_at ?? new Date().toISOString();
+
+      return {
+        id: authUser.id,
+        email: usuario?.email || authEmail,
+        nome: usuario?.nome || authEmail.split('@')[0],
+        tipo_usuario: (usuario?.tipo_usuario as 'usuario' | 'administrador') || 'usuario',
+        ativo: usuario?.ativo ?? true,
+        avatar_url: usuario?.avatar_url || null,
+        bio: usuario?.bio || null,
+        website: usuario?.website || null,
+        criado_em: usuario?.criado_em || authCreatedAt,
+        atualizado_em: usuario?.atualizado_em || null
+      } as UserProfile;
+    });
+
+    setUsers(combinedUsers);
   } catch (error) {
-    Alert.alert('Erro', 'Falha ao carregar usuários');
-    console.error('Erro ao carregar usuários:', error);
+    console.error('Error loading users:', error);
+    Alert.alert('Error', 'Failed to load users');
+    
+    // Fallback to just 'usuario' table
+    try {
+      const { data, error } = await supabase
+        .from('usuario')
+        .select('*')
+        .order('criado_em', { ascending: false });
+
+      if (error) throw error;
+      setUsers((data as UserProfile[]) || []);
+    } catch (fallbackError) {
+      console.error('Fallback error:', fallbackError);
+    }
   } finally {
     setLoading(false);
     setRefreshing(false);
