@@ -12,18 +12,9 @@ const CARD_MARGIN = 20;
 const CARD_WIDTH = width * 0.85;
 const SNAP_INTERVAL = CARD_HEIGHT + CARD_MARGIN;
 
-export default function GerenciarUsuarios() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [isEditingUser, setIsEditingUser] = useState(false);
-  const [editingUser, setEditingUser] = useState<{id: string, nome: string, email: string} | null>(null);
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
-  type UserProfile = {
+// Definição de tipos
+type UserProfile = {
   id: string;
   nome: string;
   email: string;
@@ -36,70 +27,118 @@ export default function GerenciarUsuarios() {
   atualizado_em?: string;
 };
 
-const loadUserAndKeys = async () => {
-  try {
-    setLoading(true);
-    setRefreshing(true);
+// Função para gerar logs estruturados
+const logEvent = (event: string, details: any) => {
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    event,
+    details,
+  }, null, 2));
+};
 
-    // 1. First fetch from 'usuario' table
+export default function GerenciarUsuarios() {
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ id: string; nome: string; email: string } | null>(null);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadUserAndKeys = async () => {
+  setLoading(true);
+  setRefreshing(true);
+
+  try {
+    logEvent('load_users_start', { message: 'Iniciando carregamento de usuários' });
+
+    // 1. Obter o usuário atual
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      logEvent('load_users_error', { error: authError?.message || 'Usuário não autenticado', step: 'get_user' });
+      throw new Error('Usuário não autenticado');
+    }
+
+    logEvent('load_users_info', { user_id: user.id, email: user.email });
+
+    // 2. Verificar se o usuário é administrador
+    const { data: currentUser, error: userError } = await supabase
+      .from('usuario')
+      .select('tipo_usuario')
+      .eq('id', user.id)
+      .single();
+
+    if (userError) {
+      logEvent('load_users_error', { error: userError.message, step: 'check_admin' });
+      throw new Error('Erro ao verificar permissões de administrador');
+    }
+
+    if (currentUser?.tipo_usuario !== 'administrador') {
+      logEvent('load_users_denied', { user_id: user.id, message: 'Usuário não é administrador' });
+      Alert.alert('Acesso Negado', 'Apenas administradores podem visualizar todos os usuários');
+      setUsers([]);
+      return;
+    }
+
+    // 3. Sincronizar auth.users com a tabela usuario
+    const { data: syncResult, error: syncError } = await supabase
+      .rpc('sync_auth_users_to_usuario');
+    if (syncError) {
+      logEvent('load_users_sync_error', { error: syncError.message });
+      Alert.alert('Aviso', 'Falha ao sincronizar usuários. Alguns usuários podem não estar visíveis.');
+    } else {
+      logEvent('load_users_sync_success', {
+        message: 'Sincronização de usuários concluída',
+        synced_users: syncResult?.length || 0,
+        synced_user_ids: syncResult?.map((u: any) => u.id) || [],
+      });
+    }
+
+    // 4. Buscar usuários da tabela usuario
     const { data: usuarios, error: usuarioError } = await supabase
       .from('usuario')
       .select('*')
       .order('criado_em', { ascending: false });
 
-    if (usuarioError) throw usuarioError;
+    if (usuarioError) {
+      logEvent('load_users_error', { error: usuarioError.message, step: 'fetch_usuarios' });
+      throw usuarioError;
+    }
 
-    // 2. Fetch all auth users
-    const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-
-    if (authError) throw authError;
-
-    // 3. Combine data with proper type safety
-    const combinedUsers = authUsers.map(authUser => {
-      const usuario = usuarios?.find(u => u.id === authUser.id);
-      const authEmail = authUser.email ?? 'email@indefinido.com'; // Fallback email
-      const authCreatedAt = authUser.created_at ?? new Date().toISOString();
-
-      return {
-        id: authUser.id,
-        email: usuario?.email || authEmail,
-        nome: usuario?.nome || authEmail.split('@')[0],
-        tipo_usuario: (usuario?.tipo_usuario as 'usuario' | 'administrador') || 'usuario',
-        ativo: usuario?.ativo ?? true,
-        avatar_url: usuario?.avatar_url || null,
-        bio: usuario?.bio || null,
-        website: usuario?.website || null,
-        criado_em: usuario?.criado_em || authCreatedAt,
-        atualizado_em: usuario?.atualizado_em || null
-      } as UserProfile;
+    logEvent('load_users_success', {
+      user_count: usuarios.length,
+      step: 'fetch_usuarios',
+      users: usuarios.map((u: any) => ({ id: u.id, email: u.email, tipo_usuario: u.tipo_usuario })),
     });
 
-    setUsers(combinedUsers);
-  } catch (error) {
-    console.error('Error loading users:', error);
-    Alert.alert('Error', 'Failed to load users');
-    
-    // Fallback to just 'usuario' table
-    try {
-      const { data, error } = await supabase
-        .from('usuario')
-        .select('*')
-        .order('criado_em', { ascending: false });
-
-      if (error) throw error;
-      setUsers((data as UserProfile[]) || []);
-    } catch (fallbackError) {
-      console.error('Fallback error:', fallbackError);
+    if (usuarios.length < 3) {
+      logEvent('load_users_warning', {
+        message: 'Menos usuários encontrados do que o esperado',
+        expected: 3,
+        found: usuarios.length,
+      });
+      Alert.alert('Aviso', `Apenas ${usuarios.length} usuário(s) encontrado(s). Verifique a sincronização com auth.users.`);
     }
+
+    setUsers(usuarios as UserProfile[]);
+
+  } catch (error: any) {
+    logEvent('load_users_critical_error', {
+      error: error.message,
+      stack: error.stack,
+    });
+    Alert.alert('Erro', `Falha ao carregar usuários: ${error.message}`);
+    setUsers([]);
   } finally {
     setLoading(false);
     setRefreshing(false);
+    logEvent('load_users_end', { message: 'Carregamento de usuários finalizado' });
   }
 };
 
-
   useEffect(() => {
-    setLoading(true);
     loadUserAndKeys();
   }, []);
 
@@ -112,27 +151,30 @@ const loadUserAndKeys = async () => {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   // Atualiza o status do usuário (ativo/inativo)
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
+      logEvent('toggle_user_status_start', { user_id: id, current_status: currentStatus });
       const { error } = await supabase
         .from('usuario')
         .update({ ativo: !currentStatus })
         .eq('id', id);
 
       if (error) throw error;
-      
-      setUsers(prev => prev.map(user => 
+
+      setUsers(prev => prev.map(user =>
         user.id === id ? { ...user, ativo: !currentStatus } : user
       ));
-      
+
+      logEvent('toggle_user_status_success', { user_id: id, new_status: !currentStatus });
       Alert.alert('Sucesso', `Usuário ${currentStatus ? 'desativado' : 'reativado'}!`);
-    } catch (error) {
-      Alert.alert('Erro', `Falha ao ${currentStatus ? 'desativar' : 'reativar'} usuário`);
+    } catch (error: any) {
+      logEvent('toggle_user_status_error', { user_id: id, error: error.message });
+      Alert.alert('Erro', `Falha ao ${currentStatus ? 'desativar' : 'reativar'} usuário: ${error.message}`);
     }
   };
 
@@ -142,6 +184,7 @@ const loadUserAndKeys = async () => {
     setRefreshing(true);
 
     try {
+      logEvent('edit_user_start', { user_id: editingUser.id, new_name: newUserName, new_email: newUserEmail });
       const { error } = await supabase
         .from('usuario')
         .update({
@@ -151,12 +194,14 @@ const loadUserAndKeys = async () => {
         .eq('id', editingUser.id);
 
       if (error) throw error;
-      
+
+      logEvent('edit_user_success', { user_id: editingUser.id });
       Alert.alert('Sucesso', 'Usuário atualizado com sucesso!');
       setIsEditingUser(false);
       loadUserAndKeys();
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao atualizar o usuário');
+    } catch (error: any) {
+      logEvent('edit_user_error', { user_id: editingUser.id, error: error.message });
+      Alert.alert('Erro', `Falha ao atualizar o usuário: ${error.message}`);
     } finally {
       setRefreshing(false);
     }
@@ -164,7 +209,7 @@ const loadUserAndKeys = async () => {
 
   // Renderiza cada item da lista
   const renderItem = useCallback(
-    ({ item, index }: { item: any; index: number }) => {
+    ({ item, index }: { item: UserProfile; index: number }) => {
       const inputRange = [
         (index - 1) * SNAP_INTERVAL,
         index * SNAP_INTERVAL,
@@ -182,27 +227,26 @@ const loadUserAndKeys = async () => {
       });
 
       return (
-        <Animated.View 
+        <Animated.View
           style={[
             styles.cardContainer,
-            { 
-              transform: [{ scale }], 
-              
+            {
+              transform: [{ scale }],
               marginVertical: CARD_MARGIN / 2,
-              opacity: item.ativo ? 1 : 0.7
-            }
+              opacity: item.ativo ? 1 : 0.7,
+            },
           ]}
         >
           <View style={[
             styles.card,
-            !item.ativo && { borderColor: colors.red[500] }
+            !item.ativo && { borderColor: colors.red[500] },
           ]}>
             <View style={styles.cardContent}>
               <View style={styles.avatarContainer}>
                 {item.avatar_url ? (
-                  <Image 
-                    source={{ uri: item.avatar_url }} 
-                    style={styles.avatar} 
+                  <Image
+                    source={{ uri: item.avatar_url }}
+                    style={styles.avatar}
                     resizeMode="cover"
                   />
                 ) : (
@@ -211,22 +255,22 @@ const loadUserAndKeys = async () => {
                   </View>
                 )}
               </View>
-              
+
               <View style={styles.userInfo}>
                 <Text style={styles.cardTitle} numberOfLines={1}>
                   {item.nome || item.email.split('@')[0]}
                 </Text>
-                
+
                 <Text style={styles.userEmail} numberOfLines={1}>
                   {item.email}
                 </Text>
-                
+
                 <View style={[
                   styles.userTypeBadge,
-                  item.tipo_usuario === 'administrador' 
-                    ? styles.adminBadge 
+                  item.tipo_usuario === 'administrador'
+                    ? styles.adminBadge
                     : styles.userBadge,
-                  !item.ativo && styles.inactiveBadge
+                  !item.ativo && styles.inactiveBadge,
                 ]}>
                   <Text style={styles.userTypeText}>
                     {item.tipo_usuario === 'administrador' ? 'Administrador' : 'Usuário'}
@@ -234,7 +278,7 @@ const loadUserAndKeys = async () => {
                   </Text>
                 </View>
               </View>
-              
+
               <View style={styles.dateContainer}>
                 <Ionicons name="calendar" size={16} color={colors.slate[400]} />
                 <Text style={styles.dateText}>
@@ -244,7 +288,7 @@ const loadUserAndKeys = async () => {
             </View>
 
             <View style={styles.actionsContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   setEditingUser({ id: item.id, nome: item.nome, email: item.email });
                   setNewUserName(item.nome);
@@ -259,8 +303,8 @@ const loadUserAndKeys = async () => {
 
               <TouchableOpacity
                 style={[
-                  styles.actionButton, 
-                  item.ativo ? styles.deleteButton : styles.activateButton
+                  styles.actionButton,
+                  item.ativo ? styles.deleteButton : styles.activateButton,
                 ]}
                 onPress={() => {
                   Alert.alert(
@@ -268,16 +312,18 @@ const loadUserAndKeys = async () => {
                     `Deseja ${item.ativo ? 'desativar' : 'reativar'} ${item.nome || 'este usuário'}?`,
                     [
                       { text: 'Cancelar', style: 'cancel' },
-                      { text: item.ativo ? 'Desativar' : 'Reativar', 
-                        onPress: () => handleToggleStatus(item.id, item.ativo) }
+                      {
+                        text: item.ativo ? 'Desativar' : 'Reativar',
+                        onPress: () => handleToggleStatus(item.id, item.ativo),
+                      },
                     ]
                   );
                 }}
               >
-                <Ionicons 
-                  name={item.ativo ? "trash" : "refresh"} 
-                  size={18} 
-                  color={colors.pearl} 
+                <Ionicons
+                  name={item.ativo ? 'trash' : 'refresh'}
+                  size={18}
+                  color={colors.pearl}
                 />
                 <Text style={styles.actionButtonText}>
                   {item.ativo ? 'Desativar' : 'Reativar'}
@@ -294,10 +340,10 @@ const loadUserAndKeys = async () => {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => router.back()} 
+        <TouchableOpacity
+          onPress={() => router.back()}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -353,7 +399,7 @@ const loadUserAndKeys = async () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Editar Usuário</Text>
-            
+
             <TextInput
               style={styles.modalInput}
               placeholder="Nome"
@@ -361,7 +407,7 @@ const loadUserAndKeys = async () => {
               onChangeText={setNewUserName}
               placeholderTextColor={colors.slate[500]}
             />
-            
+
             <TextInput
               style={styles.modalInput}
               placeholder="Email"
@@ -370,16 +416,16 @@ const loadUserAndKeys = async () => {
               placeholderTextColor={colors.slate[500]}
               keyboardType="email-address"
             />
-            
+
             <View style={styles.modalButtonContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.modalCancelButton]}
                 onPress={() => setIsEditingUser(false)}
               >
                 <Text style={styles.modalButtonText}>Cancelar</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.modalButton, styles.modalSaveButton]}
                 onPress={handleEditUser}
                 disabled={!newUserName || !newUserEmail}
@@ -398,6 +444,7 @@ const loadUserAndKeys = async () => {
   );
 }
 
+// Estilos permanecem iguais
 const styles = StyleSheet.create({
   container: {
     flex: 1,
