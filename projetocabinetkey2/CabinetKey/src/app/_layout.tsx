@@ -87,6 +87,7 @@ function MainLayout() {
       <Stack.Screen name="(panel)/keys/register-key" />
       <Stack.Screen name="(panel)/keys/chave-admin" />
       <Stack.Screen name="(panel)/keys/BorrowConfirmation/[keyId]" />
+      
     </Stack>
   );
 }

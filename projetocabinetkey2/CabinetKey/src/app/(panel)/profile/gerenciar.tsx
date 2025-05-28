@@ -12,7 +12,6 @@ const CARD_MARGIN = 20;
 const CARD_WIDTH = width * 0.85;
 const SNAP_INTERVAL = CARD_HEIGHT + CARD_MARGIN;
 
-
 // Definição de tipos
 type UserProfile = {
   id: string;
@@ -47,14 +46,13 @@ export default function GerenciarUsuarios() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadUserAndKeys = async () => {
+const loadUserAndKeys = async () => {
   setLoading(true);
   setRefreshing(true);
 
   try {
     logEvent('load_users_start', { message: 'Iniciando carregamento de usuários' });
 
-    // 1. Obter o usuário atual
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       logEvent('load_users_error', { error: authError?.message || 'Usuário não autenticado', step: 'get_user' });
@@ -63,7 +61,7 @@ export default function GerenciarUsuarios() {
 
     logEvent('load_users_info', { user_id: user.id, email: user.email });
 
-    // 2. Verificar se o usuário é administrador
+    // Verificar se o usuário é administrador (apenas para controle de acesso)
     const { data: currentUser, error: userError } = await supabase
       .from('usuario')
       .select('tipo_usuario')
@@ -82,21 +80,16 @@ export default function GerenciarUsuarios() {
       return;
     }
 
-    // 3. Sincronizar auth.users com a tabela usuario
-    const { data: syncResult, error: syncError } = await supabase
-      .rpc('sync_auth_users_to_usuario');
+    // Sincronizar usuários
+    const { error: syncError } = await supabase.rpc('sync_auth_users_to_usuario');
     if (syncError) {
       logEvent('load_users_sync_error', { error: syncError.message });
       Alert.alert('Aviso', 'Falha ao sincronizar usuários. Alguns usuários podem não estar visíveis.');
     } else {
-      logEvent('load_users_sync_success', {
-        message: 'Sincronização de usuários concluída',
-        synced_users: syncResult?.length || 0,
-        synced_user_ids: syncResult?.map((u: any) => u.id) || [],
-      });
+      logEvent('load_users_sync_success', { message: 'Sincronização de usuários concluída' });
     }
 
-    // 4. Buscar usuários da tabela usuario
+    // Buscar todos os usuários sem filtro de tipo_usuario
     const { data: usuarios, error: usuarioError } = await supabase
       .from('usuario')
       .select('*')
@@ -113,22 +106,21 @@ export default function GerenciarUsuarios() {
       users: usuarios.map((u: any) => ({ id: u.id, email: u.email, tipo_usuario: u.tipo_usuario })),
     });
 
-    if (usuarios.length < 3) {
+    if (usuarios.length === 0) {
+      logEvent('load_users_warning', { message: 'Nenhum usuário encontrado' });
+      Alert.alert('Aviso', 'Nenhum usuário encontrado. Verifique a sincronização com auth.users.');
+    } else if (usuarios.length < 3) {
       logEvent('load_users_warning', {
         message: 'Menos usuários encontrados do que o esperado',
         expected: 3,
         found: usuarios.length,
       });
-      Alert.alert('Aviso', `Apenas ${usuarios.length} usuário(s) encontrado(s). Verifique a sincronização com auth.users.`);
+      Alert.alert('Aviso', `Apenas ${usuarios.length} usuário(s) encontrado(s). Verifique a sincronização.`);
     }
 
     setUsers(usuarios as UserProfile[]);
-
   } catch (error: any) {
-    logEvent('load_users_critical_error', {
-      error: error.message,
-      stack: error.stack,
-    });
+    logEvent('load_users_critical_error', { error: error.message, stack: error.stack });
     Alert.alert('Erro', `Falha ao carregar usuários: ${error.message}`);
     setUsers([]);
   } finally {
@@ -137,47 +129,6 @@ export default function GerenciarUsuarios() {
     logEvent('load_users_end', { message: 'Carregamento de usuários finalizado' });
   }
 };
-
-  useEffect(() => {
-    loadUserAndKeys();
-  }, []);
-
-  // Formata a data
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Data não disponível';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Atualiza o status do usuário (ativo/inativo)
-  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
-    try {
-      logEvent('toggle_user_status_start', { user_id: id, current_status: currentStatus });
-      const { error } = await supabase
-        .from('usuario')
-        .update({ ativo: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setUsers(prev => prev.map(user =>
-        user.id === id ? { ...user, ativo: !currentStatus } : user
-      ));
-
-      logEvent('toggle_user_status_success', { user_id: id, new_status: !currentStatus });
-      Alert.alert('Sucesso', `Usuário ${currentStatus ? 'desativado' : 'reativado'}!`);
-    } catch (error: any) {
-      logEvent('toggle_user_status_error', { user_id: id, error: error.message });
-      Alert.alert('Erro', `Falha ao ${currentStatus ? 'desativar' : 'reativar'} usuário: ${error.message}`);
-    }
-  };
-
   // Edita um usuário
   const handleEditUser = async () => {
     if (!editingUser) return;
@@ -194,6 +145,16 @@ export default function GerenciarUsuarios() {
         .eq('id', editingUser.id);
 
       if (error) throw error;
+
+      // Atualizar o email no auth.users também
+      const { error: authError } = await supabase.auth.admin.updateUserById(editingUser.id, {
+        email: newUserEmail || editingUser.email,
+      });
+
+      if (authError) {
+        logEvent('edit_user_auth_error', { user_id: editingUser.id, error: authError.message });
+        throw authError;
+      }
 
       logEvent('edit_user_success', { user_id: editingUser.id });
       Alert.alert('Sucesso', 'Usuário atualizado com sucesso!');
@@ -282,7 +243,7 @@ export default function GerenciarUsuarios() {
               <View style={styles.dateContainer}>
                 <Ionicons name="calendar" size={16} color={colors.slate[400]} />
                 <Text style={styles.dateText}>
-                  Registrado em: {formatDate(item.criado_em)}
+                  Registrado em: {formaData(item.criado_em)}
                 </Text>
               </View>
             </View>
