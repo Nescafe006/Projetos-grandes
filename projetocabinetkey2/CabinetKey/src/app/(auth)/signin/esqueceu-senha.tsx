@@ -15,26 +15,26 @@ export default function ForgotPassword() {
   const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   async function handlePasswordReset() {
-    if (!email) {
-      Alert.alert('Erro', 'Por favor, digite seu e-mail');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'supabase://reset-password',
-      });
-
-      if (error) throw error;
-
-      Alert.alert('Pronto!', 'Um link foi enviado pro seu e-mail.');
-    } catch (error) {
-      Alert.alert('Ops!', (error as Error).message || 'Falha ao enviar o link.');
-    } finally {
-      setLoading(false);
-    }
+  if (!email) {
+    Alert.alert('Erro', 'Por favor, digite seu e-mail');
+    return;
   }
+
+  setLoading(true);
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: 'supabase://reset-password',
+    });
+
+    if (error) throw error;
+
+    Alert.alert('Pronto!', 'Um link foi enviado para o seu e-mail. Verifique sua caixa de entrada e spam.');
+  } catch (error) {
+    Alert.alert('Ops!', (error as Error).message || 'Falha ao enviar o link.');
+  } finally {
+    setLoading(false);
+  }
+}
 
   return (
     <>

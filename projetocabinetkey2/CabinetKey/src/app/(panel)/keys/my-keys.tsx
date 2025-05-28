@@ -4,19 +4,15 @@ import { supabase } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
 
-
 type Loan = {
-  id: string;
-  user: { 
-    nome: string | null; 
-    email: string | null 
-  };
-  key: { 
-    name: string | null 
-  };
+  loan_id: string;
+  nome_usuario: string | null;
+  email: string | null;
+  nome_chave: string | null;
+  chave_id: string;
+  status: string;
   borrowed_at: string;
   returned_at: string | null;
-  status: string;
 };
 
 export default function LoanHistory() {
@@ -50,7 +46,6 @@ export default function LoanHistory() {
     const currentMonday = getMondayOfCurrentWeek();
     const currentMonth = now.getMonth();
 
-    // Verifica se mudou o dia (para resetar o filtro "hoje")
     if (currentDate !== lastResetDates.today) {
       setLastResetDates(prev => ({ ...prev, today: currentDate }));
       if (dateFilter === 'today') {
@@ -58,7 +53,6 @@ export default function LoanHistory() {
       }
     }
 
-    // Verifica se mudou a semana (segunda-feira diferente)
     if (currentMonday !== lastResetDates.week) {
       setLastResetDates(prev => ({ ...prev, week: currentMonday }));
       if (dateFilter === 'week') {
@@ -66,7 +60,6 @@ export default function LoanHistory() {
       }
     }
 
-    // Verifica se mudou o mês
     if (currentMonth !== lastResetDates.month) {
       setLastResetDates(prev => ({ ...prev, month: currentMonth }));
       if (dateFilter === 'month') {
@@ -77,42 +70,37 @@ export default function LoanHistory() {
 
   // Carrega o histórico
   const loadLoanHistory = async () => {
-  setLoading(true);
-  try {
-    const { data, error } = await supabase
-      .from('loans')
-      .select(`
-        id,
-        borrowed_at,
-        returned_at,
-        status,
-        user:user_id(nome, email),
-        key:key_id(name, description)
-      `)
-      .order('borrowed_at', { ascending: false });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('historico_chaves')
+        .select('*')
+        .order('borrowed_at', { ascending: false });
 
-    if (error) throw error;
-    
-    setLoans(data || []);
-    applyFilters(data || [], searchQuery, dateFilter);
-  } catch (error) {
-    Alert.alert('Erro', 'Não foi possível carregar o histórico.');
-  } finally {
-    setLoading(false);
-  }
-};
+      if (error) throw error;
+
+      console.log('Dados retornados:', JSON.stringify(data, null, 2)); // Depuração
+      setLoans(data || []);
+      applyFilters(data || [], searchQuery, dateFilter);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      Alert.alert('Erro', 'Não foi possível carregar o histórico.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Aplica todos os filtros
   const applyFilters = (loansToFilter: Loan[], query: string, dateRange: string) => {
     let filtered = [...loansToFilter];
-    
+
     // Filtro por texto
     if (query) {
       filtered = filtered.filter((loan) => {
-        const keyName = loan.key?.name?.toLowerCase() || '';
-        const userName = loan.user?.nome?.toLowerCase() || '';
-        const userEmail = loan.user?.email?.toLowerCase() || '';
-        
+        const keyName = loan.nome_chave?.toLowerCase() || '';
+        const userName = loan.nome_usuario?.toLowerCase() || '';
+        const userEmail = loan.email?.toLowerCase() || '';
+
         return (
           keyName.includes(query.toLowerCase()) ||
           userName.includes(query.toLowerCase()) ||
@@ -120,18 +108,17 @@ export default function LoanHistory() {
         );
       });
     }
-    
+
     // Filtro por data
     if (dateRange !== 'all') {
       const now = new Date();
       let startDate = new Date();
-      
+
       switch (dateRange) {
         case 'today':
           startDate.setHours(0, 0, 0, 0);
           break;
         case 'week':
-          // Vai para a segunda-feira da semana atual
           startDate = new Date(getMondayOfCurrentWeek());
           startDate.setHours(0, 0, 0, 0);
           break;
@@ -142,13 +129,13 @@ export default function LoanHistory() {
           startDate = selectedDate;
           break;
       }
-      
+
       filtered = filtered.filter(loan => {
         const loanDate = new Date(loan.borrowed_at);
         return loanDate >= startDate && loanDate <= now;
       });
     }
-    
+
     setFilteredLoans(filtered);
   };
 
@@ -180,27 +167,31 @@ export default function LoanHistory() {
     <View style={styles.keyCard}>
       <View style={styles.keyCardContent}>
         <View style={styles.keyInfo}>
-          <Text style={styles.keyName}>{item.key?.name || 'Chave sem nome'}</Text>
-          
+          <Text style={styles.keyName}>{item.nome_chave || 'Chave sem nome'}</Text>
+
           <View style={styles.userInfo}>
             <Text style={styles.keyUser}>
-              <Ionicons name="person" size={14} color={colors.slate[300]} /> {item.user?.nome || 'Usuário não encontrado'}
+              <Ionicons name="person" size={14} color={colors.slate[300]} /> 
+              {item.nome_usuario || 'Usuário não encontrado'}
             </Text>
             <Text style={styles.keyEmail}>
-              <Ionicons name="mail" size={14} color={colors.slate[300]} /> {item.user?.email || 'Email não disponível'}
+              <Ionicons name="mail" size={14} color={colors.slate[300]} /> 
+              {item.email || 'Email não disponível'}
             </Text>
           </View>
-          
+
           <View style={styles.dateRow}>
             <Text style={styles.dateText}>
-              <Ionicons name="calendar" size={14} color={colors.slate[400]} /> Retirada: {formatDate(item.borrowed_at)}
+              <Ionicons name="calendar" size={14} color={colors.slate[400]} /> 
+              Retirada: {formatDate(item.borrowed_at)}
             </Text>
           </View>
-          
+
           {item.returned_at && (
             <View style={styles.dateRow}>
               <Text style={styles.dateText}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.slate[400]} /> Devolução: {formatDate(item.returned_at)}
+                <Ionicons name="checkmark-circle" size={14} color={colors.slate[400]} /> 
+                Devolução: {formatDate(item.returned_at)}
               </Text>
             </View>
           )}
@@ -212,11 +203,11 @@ export default function LoanHistory() {
   // Efeitos
   useEffect(() => {
     loadLoanHistory();
-    
+
     // Configura o verificador de períodos
     const interval = setInterval(checkAndResetPeriods, 60000); // Verifica a cada minuto
     checkAndResetPeriods(); // Verifica imediatamente
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -225,7 +216,7 @@ export default function LoanHistory() {
       {/* Cabeçalho */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Histórico de Empréstimos</Text>
-        
+
         {/* Barra de busca */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color={colors.slate[400]} style={styles.searchIcon} />
@@ -242,31 +233,31 @@ export default function LoanHistory() {
             </TouchableOpacity>
           )}
         </View>
-        
+
         {/* Filtros de data */}
         <View style={styles.filterContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.filterButton, dateFilter === 'all' && styles.activeFilter]}
             onPress={() => handleDateFilterChange('all')}
           >
             <Text style={styles.filterText}>Todos</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.filterButton, dateFilter === 'today' && styles.activeFilter]}
             onPress={() => handleDateFilterChange('today')}
           >
             <Text style={styles.filterText}>Hoje</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.filterButton, dateFilter === 'week' && styles.activeFilter]}
             onPress={() => handleDateFilterChange('week')}
           >
             <Text style={styles.filterText}>Semana</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.filterButton, dateFilter === 'month' && styles.activeFilter]}
             onPress={() => handleDateFilterChange('month')}
           >
@@ -284,14 +275,14 @@ export default function LoanHistory() {
         <FlatList
           data={filteredLoans}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.loan_id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="time-outline" size={50} color={colors.slate[500]} />
               <Text style={styles.emptyText}>
-                {searchQuery || dateFilter !== 'all' 
-                  ? 'Nenhum empréstimo encontrado' 
+                {searchQuery || dateFilter !== 'all'
+                  ? 'Nenhum empréstimo encontrado'
                   : 'Nenhum histórico disponível'}
               </Text>
             </View>
@@ -304,7 +295,7 @@ export default function LoanHistory() {
   );
 }
 
-// Estilos (permanecem os mesmos)
+// Estilos (mantidos como estavam)
 const styles = StyleSheet.create({
   container: {
     flex: 1,

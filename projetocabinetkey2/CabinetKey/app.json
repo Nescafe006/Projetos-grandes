@@ -1,22 +1,24 @@
 {
   "expo": {
     "name": "Cabinet Key",
-    "slug": "cabinet",
+    "slug": "supabase",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "supabase",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "icon": "./assets/images/icon.png",
-
-   "splash": {
-  "image": "./assets/images/splashscreen_logo.png",
-  "resizeMode": "contain",
-  "backgroundColor": "#ffffff"
-  },
-
+    "splash": {
+      "image": "./assets/images/splashscreen_logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.joao2006.supabase",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

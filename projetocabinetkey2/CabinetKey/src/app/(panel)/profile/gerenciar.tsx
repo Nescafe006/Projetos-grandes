@@ -61,7 +61,6 @@ const loadUserAndKeys = async () => {
 
     logEvent('load_users_info', { user_id: user.id, email: user.email });
 
-    // Verificar se o usuário é administrador (apenas para controle de acesso)
     const { data: currentUser, error: userError } = await supabase
       .from('usuario')
       .select('tipo_usuario')
@@ -80,7 +79,6 @@ const loadUserAndKeys = async () => {
       return;
     }
 
-    // Sincronizar usuários
     const { error: syncError } = await supabase.rpc('sync_auth_users_to_usuario');
     if (syncError) {
       logEvent('load_users_sync_error', { error: syncError.message });
@@ -89,7 +87,6 @@ const loadUserAndKeys = async () => {
       logEvent('load_users_sync_success', { message: 'Sincronização de usuários concluída' });
     }
 
-    // Buscar todos os usuários sem filtro de tipo_usuario
     const { data: usuarios, error: usuarioError } = await supabase
       .from('usuario')
       .select('*')
@@ -100,23 +97,9 @@ const loadUserAndKeys = async () => {
       throw usuarioError;
     }
 
-    logEvent('load_users_success', {
-      user_count: usuarios.length,
-      step: 'fetch_usuarios',
-      users: usuarios.map((u: any) => ({ id: u.id, email: u.email, tipo_usuario: u.tipo_usuario })),
-    });
-
-    if (usuarios.length === 0) {
-      logEvent('load_users_warning', { message: 'Nenhum usuário encontrado' });
-      Alert.alert('Aviso', 'Nenhum usuário encontrado. Verifique a sincronização com auth.users.');
-    } else if (usuarios.length < 3) {
-      logEvent('load_users_warning', {
-        message: 'Menos usuários encontrados do que o esperado',
-        expected: 3,
-        found: usuarios.length,
-      });
-      Alert.alert('Aviso', `Apenas ${usuarios.length} usuário(s) encontrado(s). Verifique a sincronização.`);
-    }
+    console.log('Usuários retornados:', usuarios);
+    console.log('Total de usuários:', usuarios.length);
+    console.log('Tipos de usuário:', usuarios.map(u => ({ id: u.id, email: u.email, tipo_usuario: u.tipo_usuario })));
 
     setUsers(usuarios as UserProfile[]);
   } catch (error: any) {
@@ -129,6 +112,7 @@ const loadUserAndKeys = async () => {
     logEvent('load_users_end', { message: 'Carregamento de usuários finalizado' });
   }
 };
+
   // Edita um usuário
   const handleEditUser = async () => {
     if (!editingUser) return;
@@ -243,8 +227,8 @@ const loadUserAndKeys = async () => {
               <View style={styles.dateContainer}>
                 <Ionicons name="calendar" size={16} color={colors.slate[400]} />
                 <Text style={styles.dateText}>
-                  Registrado em: {formaData(item.criado_em)}
-                </Text>
+                  
+</Text>
               </View>
             </View>
 
@@ -275,7 +259,7 @@ const loadUserAndKeys = async () => {
                       { text: 'Cancelar', style: 'cancel' },
                       {
                         text: item.ativo ? 'Desativar' : 'Reativar',
-                        onPress: () => handleToggleStatus(item.id, item.ativo),
+                 
                       },
                     ]
                   );

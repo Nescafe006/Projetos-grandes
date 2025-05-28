@@ -6,10 +6,9 @@ import { Platform } from 'react-native';
 import { useState, useCallback, useRef } from 'react';
 
 const { width, height } = Dimensions.get('window');
-const CARD_HEIGHT = height * 0.4; // Altura do card
-const CARD_MARGIN = 10; // Margem entre os cards
-const SNAP_INTERVAL = CARD_HEIGHT + CARD_MARGIN; // Intervalo para snap
-
+const CARD_HEIGHT = height * 0.4; 
+const CARD_MARGIN = 10; 
+const SNAP_INTERVAL = CARD_HEIGHT + CARD_MARGIN; 
 const keyOptions = [
   
     {
@@ -34,7 +33,7 @@ export default function KeysDashboard() {
 
     const renderItem = useCallback(
         ({ item, index }: { item: typeof keyOptions[0]; index: number }) => {
-            // Interpolação para suavizar a transição de scale e opacity
+     
             const inputRange = [
                 (index - 1) * SNAP_INTERVAL,
                 index * SNAP_INTERVAL,
@@ -63,7 +62,7 @@ export default function KeysDashboard() {
                             { transform: [{ scale }], opacity },
                         ]}
                     >
-                        <Ionicons name={item.icon} size={48} color={colors.neon.aqua} />
+              <Ionicons name={item.icon as 'swap-horizontal' | 'key' | 'filter' | 'map' | 'push'} size={48} color={colors.neon.aqua} />
                         <Text style={styles.cardTitle}>{item.title}</Text>
                         <Text style={styles.previewText}>{item.preview}</Text>
                     </Animated.View>
@@ -87,7 +86,7 @@ export default function KeysDashboard() {
                 data={keyOptions}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
-                vertical
+             
                 pagingEnabled
                 showsVerticalScrollIndicator={false}
                 snapToInterval={SNAP_INTERVAL}
@@ -131,9 +130,9 @@ const styles = StyleSheet.create({
         textShadowRadius: 5,
     },
     listContainer: {
-        paddingTop: (height - CARD_HEIGHT) / 2, // Centraliza verticalmente
+        paddingTop: (height - CARD_HEIGHT) / 2, 
         paddingBottom: (height - CARD_HEIGHT) / 2,
-        paddingHorizontal: (width - (width * 0.6)) / 2, // Centraliza horizontalmente
+        paddingHorizontal: (width - (width * 0.6)) / 2, 
     },
     card: {
         width: width * 0.6,
